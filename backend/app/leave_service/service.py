@@ -1,5 +1,6 @@
 from datetime import date, datetime, timezone
 from decimal import Decimal
+import logging
 import math
 from typing import Dict, List, Optional, Tuple
 
@@ -10,6 +11,12 @@ from sqlalchemy.orm import Session
 from app.audit_service.models import AuditAction
 from app.audit_service.service import create_audit_log
 from app.authentication_service.models import User, UserRole
+from app.core.config import settings
+from app.email_service.service import (
+    send_leave_approved_email,
+    send_leave_rejected_email,
+    send_leave_request_email,
+)
 from app.employee_service.models import Employee, EmploymentStatus
 from app.leave_service.enums import LeaveDayType, LeaveStatus
 from app.leave_service.models import LeaveAttachment, LeaveBalance, LeaveRequest, LeaveType
@@ -26,6 +33,9 @@ from app.leave_service.schemas import (
 )
 from app.notification_service.enums import NotificationType
 from app.notification_service.service import create_notification, notify_all_hr
+
+logger = logging.getLogger(__name__)
+
 
 
 def compute_leave_duration(
@@ -505,7 +515,7 @@ def apply_leave(
         ip_address=ip_address,
     )
 
-    # Notify HR
+    # Notify HR in-app
     notify_all_hr(
         db=db,
         title="New Leave Request",
@@ -514,6 +524,32 @@ def apply_leave(
         reference_id=str(leave_req.id),
         reference_type="LEAVE",
     )
+
+    # Notify HR via Email
+    hr_users = db.scalars(
+        select(User).where(User.role == UserRole.HR, User.is_active == True)
+    ).all()
+    seen_hr_emails = set()
+    emp_full_name = f"{employee.first_name} {employee.last_name}".strip()
+
+    for hr_u in hr_users:
+        if hr_u.email and hr_u.email not in seen_hr_emails:
+            seen_hr_emails.add(hr_u.email)
+            try:
+                send_leave_request_email(
+                    recipient_email=hr_u.email,
+                    employee_name=emp_full_name,
+                    leave_type=leave_type.name,
+                    start_date=str(leave_req.start_date),
+                    end_date=str(leave_req.end_date),
+                    duration=str(duration),
+                    reason=req_in.reason,
+                    login_url=settings.FRONTEND_URL,
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to send leave request email to HR {hr_u.email}: {e}"
+                )
 
     return build_leave_response(leave_req)
 
@@ -614,7 +650,7 @@ def approve_leave(
         ip_address=ip_address,
     )
 
-    # Notify employee
+    # Notify employee in-app
     create_notification(
         db=db,
         user_id=leave_req.employee.user_id,
@@ -624,6 +660,25 @@ def approve_leave(
         reference_id=str(leave_req.id),
         reference_type="LEAVE",
     )
+
+    # Notify employee via Email
+    if leave_req.employee and leave_req.employee.user and leave_req.employee.user.email and leave_req.employee.user.is_active:
+        try:
+            emp_name = f"{leave_req.employee.first_name} {leave_req.employee.last_name}".strip()
+            send_leave_approved_email(
+                recipient_email=leave_req.employee.user.email,
+                employee_name=emp_name,
+                leave_type=leave_req.leave_type.name if leave_req.leave_type else "Leave",
+                start_date=str(leave_req.start_date),
+                end_date=str(leave_req.end_date),
+                duration=str(leave_req.duration),
+                hr_remarks=review_in.hr_remarks,
+                login_url=settings.FRONTEND_URL,
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to send leave approved email to {leave_req.employee.user.email}: {e}"
+            )
 
     return build_leave_response(leave_req)
 
@@ -666,7 +721,7 @@ def reject_leave(
         ip_address=ip_address,
     )
 
-    # Notify employee
+    # Notify employee in-app
     create_notification(
         db=db,
         user_id=leave_req.employee.user_id,
@@ -677,7 +732,26 @@ def reject_leave(
         reference_type="LEAVE",
     )
 
+    # Notify employee via Email
+    if leave_req.employee and leave_req.employee.user and leave_req.employee.user.email and leave_req.employee.user.is_active:
+        try:
+            emp_name = f"{leave_req.employee.first_name} {leave_req.employee.last_name}".strip()
+            send_leave_rejected_email(
+                recipient_email=leave_req.employee.user.email,
+                employee_name=emp_name,
+                leave_type=leave_req.leave_type.name if leave_req.leave_type else "Leave",
+                start_date=str(leave_req.start_date),
+                end_date=str(leave_req.end_date),
+                hr_remarks=review_in.hr_remarks,
+                login_url=settings.FRONTEND_URL,
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to send leave rejected email to {leave_req.employee.user.email}: {e}"
+            )
+
     return build_leave_response(leave_req)
+
 
 
 # ==========================================

@@ -1,10 +1,14 @@
 from datetime import date, datetime, timezone
+import logging
 from typing import List, Optional, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
 from app.audit_service.models import AuditAction, AuditLog
+from app.authentication_service.models import User
+from app.core.config import settings
+from app.email_service.service import send_project_assignment_email
 from app.employee_service.models import Employee, EmploymentStatus
 from app.notification_service.enums import NotificationType
 from app.notification_service.models import Notification
@@ -26,6 +30,9 @@ from app.project_service.schemas import (
     ProjectStatusUpdate,
     ProjectUpdate,
 )
+
+logger = logging.getLogger(__name__)
+
 
 
 def calculate_is_overdue(end_date: Optional[date], project_status: ProjectStatus) -> bool:
@@ -362,7 +369,36 @@ def assign_employee_to_project(db: Session, project_id: int, schema: ProjectAssi
 
     db.commit()
     db.refresh(assignment)
+
+    # Send HTML email notification to assigned employee
+    if employee.user and employee.user.email:
+        try:
+            assigned_by_user = db.get(User, user_id) if user_id else None
+            assigned_by_name = (
+                f"{assigned_by_user.employee.first_name} {assigned_by_user.employee.last_name}".strip()
+                if (assigned_by_user and assigned_by_user.employee)
+                else (assigned_by_user.username if assigned_by_user else "HR Department")
+            )
+            emp_full_name = f"{employee.first_name} {employee.last_name}".strip()
+
+            send_project_assignment_email(
+                recipient_email=employee.user.email,
+                employee_name=emp_full_name,
+                project_name=project.name,
+                project_role=role.name,
+                project_description=project.description,
+                start_date=str(project.start_date) if project.start_date else None,
+                assigned_date=str(assignment.assigned_date) if assignment.assigned_date else None,
+                assigned_by_name=assigned_by_name,
+                login_url=settings.FRONTEND_URL,
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to send project assignment email to {employee.user.email}: {e}"
+            )
+
     return assignment
+
 
 
 def remove_employee_from_project(db: Session, project_id: int, assignment_id: int, user_id: int, ip_address: Optional[str] = None) -> ProjectAssignment:

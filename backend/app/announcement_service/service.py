@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+import logging
 import math
 from typing import Any, Dict, List, Optional
 
@@ -24,10 +25,15 @@ from app.announcement_service.schemas import (
 from app.audit_service.models import AuditAction
 from app.audit_service.service import create_audit_log
 from app.authentication_service.models import User, UserRole
+from app.core.config import settings
+from app.email_service.service import send_announcement_email
 from app.employee_service.models import Employee, EmploymentStatus
 from app.notification_service.enums import NotificationType
 from app.notification_service.service import notify_users
 from app.project_service.models import AssignmentStatus, Project, ProjectAssignment
+
+logger = logging.getLogger(__name__)
+
 
 
 def search_projects_for_announcements(
@@ -402,15 +408,20 @@ def _dispatch_announcement_notifications(
     announcement: Announcement,
 ):
     """
-    Helper to send in-app notifications when an announcement is published.
+    Helper to send in-app notifications and HTML emails when an announcement is published.
     """
+    # 1. Resolve project details if project-scoped
+    project = None
+    if announcement.announcement_scope == AnnouncementScope.PROJECT and announcement.project_id:
+        project = announcement.project or db.get(Project, announcement.project_id)
+
     notification_type = (
         NotificationType.PROJECT_ANNOUNCEMENT
         if announcement.announcement_scope == AnnouncementScope.PROJECT
         else NotificationType.COMPANY_ANNOUNCEMENT
     )
 
-    proj_code = announcement.project.project_code if announcement.project else ""
+    proj_code = project.project_code if project else ""
     title_prefix = f"[{announcement.announcement_scope.value}]"
     if announcement.announcement_scope == AnnouncementScope.PROJECT and proj_code:
         title_prefix = f"[PROJECT • {proj_code}]"
@@ -422,35 +433,45 @@ def _dispatch_announcement_notifications(
         else announcement.content
     )
 
-    recipient_user_ids: List[int] = []
+    # 2. Fetch active eligible employee records
+    active_employees: List[Employee] = []
 
     if announcement.announcement_scope == AnnouncementScope.COMPANY:
-        # All active employees
-        active_users = db.scalars(
-            select(User.id)
-            .join(Employee, User.id == Employee.user_id)
-            .where(
-                User.is_active == True,
-                Employee.employment_status == EmploymentStatus.ACTIVE,
-                Employee.deleted_at.is_(None),
-            )
-        ).all()
-        recipient_user_ids = list(active_users)
-    elif announcement.announcement_scope == AnnouncementScope.PROJECT:
+        # All active employees with active users
+        active_employees = list(
+            db.scalars(
+                select(Employee)
+                .join(User, Employee.user_id == User.id)
+                .where(
+                    User.is_active == True,
+                    Employee.employment_status == EmploymentStatus.ACTIVE,
+                    Employee.deleted_at.is_(None),
+                )
+            ).all()
+        )
+    elif announcement.announcement_scope == AnnouncementScope.PROJECT and announcement.project_id:
         # Only active members assigned to this project
-        active_proj_users = db.scalars(
-            select(User.id)
-            .join(Employee, User.id == Employee.user_id)
-            .join(ProjectAssignment, Employee.id == ProjectAssignment.employee_id)
-            .where(
-                ProjectAssignment.project_id == announcement.project_id,
-                ProjectAssignment.status == AssignmentStatus.ACTIVE,
-                User.is_active == True,
-                Employee.employment_status == EmploymentStatus.ACTIVE,
-                Employee.deleted_at.is_(None),
-            )
-        ).all()
-        recipient_user_ids = list(active_proj_users)
+        active_employees = list(
+            db.scalars(
+                select(Employee)
+                .join(User, Employee.user_id == User.id)
+                .join(ProjectAssignment, Employee.id == ProjectAssignment.employee_id)
+                .where(
+                    ProjectAssignment.project_id == announcement.project_id,
+                    ProjectAssignment.status == AssignmentStatus.ACTIVE,
+                    User.is_active == True,
+                    Employee.employment_status == EmploymentStatus.ACTIVE,
+                    Employee.deleted_at.is_(None),
+                )
+            ).all()
+        )
+
+    if not active_employees:
+        logger.info(f"No eligible recipients found for announcement ID {announcement.id}")
+        return
+
+    # Extract user IDs for in-app notification
+    recipient_user_ids = sorted(list(set(emp.user_id for emp in active_employees if emp.user_id)))
 
     if recipient_user_ids:
         notify_users(
@@ -462,6 +483,48 @@ def _dispatch_announcement_notifications(
             reference_id=str(announcement.id),
             reference_type="ANNOUNCEMENT",
         )
+
+    # 3. Send HTML Announcement Email to deduplicated active employees
+    proj_name = project.name if project else ""
+    pub_date = (
+        announcement.published_at.strftime("%B %d, %Y")
+        if announcement.published_at
+        else datetime.now(timezone.utc).strftime("%B %d, %Y")
+    )
+    scope_str = (
+        announcement.announcement_scope.value
+        if hasattr(announcement.announcement_scope, "value")
+        else str(announcement.announcement_scope)
+    )
+
+    seen_emails = set()
+
+    for emp in active_employees:
+        recipient_email = emp.user.email if (emp.user and emp.user.email) else None
+        if not recipient_email or recipient_email in seen_emails:
+            continue
+
+        seen_emails.add(recipient_email)
+        emp_name = f"{emp.first_name} {emp.last_name}".strip()
+
+        try:
+            send_announcement_email(
+                recipient_email=recipient_email,
+                employee_name=emp_name,
+                announcement_title=announcement.title,
+                announcement_content=announcement.content,
+                announcement_scope=scope_str,
+                project_name=proj_name,
+                published_date=pub_date,
+                login_url=settings.FRONTEND_URL,
+            )
+            logger.info(f"Announcement email sent to recipient: {recipient_email}")
+        except Exception as e:
+            logger.error(
+                f"Failed to send announcement email to {recipient_email}: {e}"
+            )
+
+
 
 
 def get_announcements_for_hr(

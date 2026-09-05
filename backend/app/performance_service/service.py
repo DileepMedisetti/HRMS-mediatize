@@ -1,4 +1,5 @@
 from datetime import date, datetime, timezone
+import logging
 from typing import List, Optional, Tuple
 
 from fastapi import HTTPException, status
@@ -9,7 +10,12 @@ from app.attendance_service.models import Attendance, AttendanceStatus
 from app.audit_service.models import AuditAction
 from app.audit_service.service import create_audit_log
 from app.authentication_service.models import User, UserRole
+from app.core.config import settings
+from app.email_service.service import send_performance_feedback_email
 from app.employee_service.models import Employee
+
+logger = logging.getLogger(__name__)
+
 from app.leave_service.models import LeaveRequest, LeaveStatus
 from app.notification_service.enums import NotificationType
 from app.notification_service.service import notify_users
@@ -281,7 +287,36 @@ def complete_performance_review(
             message=f"Your performance review for period {review.review_start_date} to {review.review_end_date} has been completed.",
         )
 
+        # Dispatch HTML Performance Feedback Email
+        if review.employee.user and review.employee.user.email and review.employee.user.is_active:
+            try:
+                emp_name = f"{review.employee.first_name} {review.employee.last_name}".strip()
+                review_period = f"{review.review_start_date} to {review.review_end_date}"
+                review_date_str = (
+                    review.completed_at.strftime("%B %d, %Y")
+                    if review.completed_at
+                    else datetime.now(timezone.utc).strftime("%B %d, %Y")
+                )
+
+                send_performance_feedback_email(
+                    recipient_email=review.employee.user.email,
+                    employee_name=emp_name,
+                    review_period=review_period,
+                    overall_rating=float(review.overall_rating or 0.0),
+                    overall_feedback=review.overall_feedback,
+                    review_date=review_date_str,
+                    login_url=settings.FRONTEND_URL,
+                )
+                logger.info(
+                    f"Performance feedback email sent to: {review.employee.user.email}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to send performance feedback email to {review.employee.user.email}: {e}"
+                )
+
     return format_review_response(review)
+
 
 
 def get_performance_review_by_id(

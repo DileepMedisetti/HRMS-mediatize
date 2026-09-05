@@ -402,3 +402,49 @@ def test_publish_and_archive_lifecycle(client, hr_user_and_token, emp1_and_token
         headers={"Authorization": f"Bearer {hr_token}"},
     )
     assert res_repub.status_code == status.HTTP_400_BAD_REQUEST
+
+
+def test_announcement_email_dispatch_and_error_resilience(
+    client,
+    hr_user_and_token,
+    emp1_and_token,
+):
+    from unittest.mock import patch
+
+    _, hr_token = hr_user_and_token
+    _, emp1, _ = emp1_and_token
+
+    hr_headers = {"Authorization": f"Bearer {hr_token}"}
+
+    # 1. Email dispatch succeeds upon creation with publish_now=True
+    with patch("app.announcement_service.service.send_announcement_email") as mock_send:
+        res = client.post(
+            "/announcements",
+            json={
+                "title": "Email Test Announcement",
+                "content": "Testing email dispatch",
+                "announcement_scope": "COMPANY",
+                "publish_now": True,
+            },
+            headers=hr_headers,
+        )
+        assert res.status_code == status.HTTP_201_CREATED
+        assert mock_send.called
+        recipients = [call.kwargs["recipient_email"] for call in mock_send.call_args_list]
+        assert emp1.user.email in recipients
+
+    # 2. Email failure does NOT cause announcement creation to fail
+    with patch("app.announcement_service.service.send_announcement_email", side_effect=Exception("SMTP Connection Error")):
+        res_fail = client.post(
+            "/announcements",
+            json={
+                "title": "Resilient Announcement",
+                "content": "Testing SMTP exception handling",
+                "announcement_scope": "COMPANY",
+                "publish_now": True,
+            },
+            headers=hr_headers,
+        )
+        assert res_fail.status_code == status.HTTP_201_CREATED
+        assert res_fail.json()["title"] == "Resilient Announcement"
+

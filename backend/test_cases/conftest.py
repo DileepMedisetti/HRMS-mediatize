@@ -83,16 +83,18 @@ def db_session():
                 from app.announcement_service.models import Announcement, AnnouncementRead
                 from app.project_service.models import Project, ProjectAssignment, ProjectRole
 
-                cleanup_db.execute(
-                    delete(AnnouncementRead).where(
-                        (AnnouncementRead.employee_id.in_(emp_ids)) if emp_ids else False
+                if emp_ids:
+                    cleanup_db.execute(
+                        delete(AnnouncementRead).where(
+                            AnnouncementRead.employee_id.in_(emp_ids)
+                        )
                     )
-                )
                 cleanup_db.execute(
                     delete(Announcement).where(
                         (Announcement.created_by.in_(test_user_ids))
                     )
                 )
+
 
                 if emp_ids:
                     cleanup_db.execute(
