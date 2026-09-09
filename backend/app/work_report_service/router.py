@@ -6,7 +6,6 @@ from fastapi import (
     Depends,
     File,
     Form,
-    HTTPException,
     Query,
     Request,
     UploadFile,
@@ -16,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.authentication_service.dependencies import (
     get_current_hr,
-    get_current_user_with_password_check,
+    get_current_user,
 )
 from app.authentication_service.models import User
 from app.core.database import get_db
@@ -27,7 +26,10 @@ from app.work_report_service.schemas import (
     WorkReportResponse,
 )
 
-router = APIRouter(prefix="/work-reports", tags=["Employee Work Reports"])
+router = APIRouter(
+    prefix="/work-reports",
+    tags=["Employee Work Reports"],
+)
 
 
 # ============================================================
@@ -42,9 +44,12 @@ router = APIRouter(prefix="/work-reports", tags=["Employee Work Reports"])
 )
 def get_my_assigned_projects_endpoint(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
-    return service.get_assigned_projects_for_employee(db, current_user.id)
+    return service.get_assigned_projects_for_employee(
+        db,
+        current_user.id,
+    )
 
 
 @router.post(
@@ -55,14 +60,31 @@ def get_my_assigned_projects_endpoint(
 )
 async def submit_work_report_endpoint(
     request: Request,
-    project_id: int = Form(..., description="ID of the assigned project"),
-    work_description: str = Form(..., description="Description of work done"),
-    problems_faced: Optional[str] = Form(None, description="Issues or challenges encountered"),
-    document: Optional[UploadFile] = File(None, description="Optional supporting document attachment"),
+    project_id: int = Form(
+        ...,
+        description="ID of the assigned project",
+    ),
+    work_description: str = Form(
+        ...,
+        description="Description of work done",
+    ),
+    problems_faced: Optional[str] = Form(
+        None,
+        description="Issues or challenges encountered",
+    ),
+    document: Optional[UploadFile] = File(
+        None,
+        description="Optional supporting document attachment",
+    ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
-    ip_address = request.client.host if request.client else None
+    ip_address = (
+        request.client.host
+        if request.client
+        else None
+    )
+
     return await service.create_work_report(
         db=db,
         current_user=current_user,
@@ -87,7 +109,7 @@ def get_my_work_reports_endpoint(
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     return service.get_my_work_reports(
         db=db,
@@ -109,7 +131,7 @@ def get_my_work_reports_endpoint(
 def get_my_work_report_by_id_endpoint(
     report_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     return service.get_my_work_report_by_id(
         db=db,

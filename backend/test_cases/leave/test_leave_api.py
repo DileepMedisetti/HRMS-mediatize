@@ -3,7 +3,6 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
 from app.employee_service.models import Employee, EmploymentStatus
 from app.main import app
 
@@ -22,13 +21,11 @@ def test_setup(db_session):
 
     emp_user = User(
         email=emp_email,
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )
     hr_user = User(
         email=hr_email,
-        password_hash=hash_password("hr1234"),
         role=UserRole.HR,
         is_active=True,
     )
@@ -52,15 +49,13 @@ def test_setup(db_session):
     db_session.add_all([emp, hr_emp])
     db_session.commit()
     emp_id = emp.id
+    emp_user_id = emp_user.id
+    hr_user_id = hr_user.id
     db_session.close()
 
-    # Login employee
-    emp_login = client.post("/auth/login", json={"email": emp_email, "role": "EMPLOYEE", "password": "password123"})
-    emp_token = emp_login.json()["access_token"]
-
-    # Login HR
-    hr_login = client.post("/auth/login", json={"email": hr_email, "role": "HR", "password": "hr1234"})
-    hr_token = hr_login.json()["access_token"]
+    from app.core.security import create_access_token
+    emp_token = create_access_token(user_id=emp_user_id, role="EMPLOYEE")
+    hr_token = create_access_token(user_id=hr_user_id, role="HR")
 
     return {
         "emp_token": emp_token,
@@ -186,6 +181,10 @@ def test_leave_cancellation_api(test_setup):
     req_id = res_apply.json()["id"]
 
     # Employee cancels leave
-    res_cancel = client.patch(f"/leaves/{req_id}/cancel", headers=emp_headers)
+    res_cancel = client.patch(
+        f"/leaves/{req_id}/cancel",
+        json={"cancellation_reason": "API test cancellation"},
+        headers=emp_headers,
+    )
     assert res_cancel.status_code == 200
     assert res_cancel.json()["status"] == "CANCELLED"

@@ -41,6 +41,7 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, onItemClick }) 
     role === "HR"
       ? [
           { label: "Dashboard", path: "/hr/dashboard", icon: LayoutDashboard },
+          { label: "HR Profile", path: "/hr/profile", icon: UserRound },
           { label: "Employees", path: "/hr/employees", icon: Users },
           { label: "Performance", path: "/hr/performance", icon: TrendingUp },
           { label: "Projects", path: "/hr/projects", icon: FolderGit2 },
@@ -52,7 +53,6 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, onItemClick }) 
           { label: "Leave Requests", path: "/hr/leaves", icon: CalendarDays },
           { label: "Leave Types", path: "/hr/leave-types", icon: Tags },
           { label: "Leave Balances", path: "/hr/leave-balances", icon: WalletCards },
-          { label: "Password Resets", path: "/hr/password-reset-requests", icon: KeyRound },
           { label: "Audit Logs", path: "/hr/audit-logs", icon: ClipboardList },
           { label: "Notifications", path: "/notifications", icon: Bell },
         ]

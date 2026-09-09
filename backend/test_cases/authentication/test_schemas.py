@@ -1,64 +1,78 @@
 import pytest
 from pydantic import ValidationError
 
-from app.authentication_service.models import UserRole
 from app.authentication_service.schemas import (
-    ChangePasswordRequest,
-    ForgotPasswordRequest,
-    LoginRequest,
+    OTPRequestSchema,
+    OTPVerifySchema,
     TokenResponse,
+    UserResponse,
 )
 
 
-def test_valid_login_request():
-    request = LoginRequest(
-        email="hr@mediatize.com",
-        role="HR",
-        password="hr1234",
+def test_valid_otp_request():
+    request = OTPRequestSchema(
+        email="hr@example.com",
     )
 
-    assert request.email == "hr@mediatize.com"
-    assert request.role == UserRole.HR
-    assert request.password == "hr1234"
+    assert request.email == "hr@example.com"
 
 
-def test_employee_login_request():
-    request = LoginRequest(
-        email="employee1@mediatize.com",
-        role="EMPLOYEE",
-        password="employee123",
-    )
-
-    assert request.email == "employee1@mediatize.com"
-    assert request.role == UserRole.EMPLOYEE
-    assert request.password == "employee123"
-
-
-def test_invalid_email_is_rejected():
+def test_invalid_otp_request_email():
     with pytest.raises(ValidationError):
-        LoginRequest(
+        OTPRequestSchema(
             email="invalid-email",
-            role="HR",
-            password="hr1234",
         )
 
 
-def test_short_password_is_rejected():
+def test_valid_six_digit_otp():
+    request = OTPVerifySchema(
+        email="hr@example.com",
+        otp="123456",
+    )
+
+    assert request.otp == "123456"
+
+
+def test_leading_zero_otp_is_preserved():
+    request = OTPVerifySchema(
+        email="hr@example.com",
+        otp="019284",
+    )
+
+    assert request.otp == "019284"
+
+
+def test_short_otp_is_rejected():
     with pytest.raises(ValidationError):
-        LoginRequest(
-            email="hr@mediatize.com",
-            role="HR",
-            password="12345",
+        OTPVerifySchema(
+            email="hr@example.com",
+            otp="12345",
         )
 
 
-def test_invalid_role_is_rejected():
+def test_long_otp_is_rejected():
     with pytest.raises(ValidationError):
-        LoginRequest(
-            email="hr@mediatize.com",
-            role="INVALID_ROLE",
-            password="hr1234",
+        OTPVerifySchema(
+            email="hr@example.com",
+            otp="1234567",
         )
+
+
+def test_non_numeric_otp_is_rejected():
+    with pytest.raises(ValidationError):
+        OTPVerifySchema(
+            email="hr@example.com",
+            otp="12A456",
+        )
+
+
+def test_otp_whitespace_is_removed():
+    request = OTPVerifySchema(
+        email="hr@example.com",
+        otp=" 019284 ",
+    )
+
+    assert request.otp == "019284"
 
 
 def test_token_response():
@@ -70,36 +84,16 @@ def test_token_response():
     assert response.token_type == "bearer"
 
 
-def test_valid_change_password_request():
-    request = ChangePasswordRequest(
-        current_password="oldpass",
-        new_password="newpass",
-        confirm_password="newpass",
+def test_user_response():
+    response = UserResponse(
+        id=1,
+        email="hr@example.com",
+        employee_id=None,
+        role="HR",
+        is_active=True,
     )
 
-    assert request.new_password == "newpass"
-    assert request.confirm_password == "newpass"
-
-
-def test_change_password_short_password_is_rejected():
-    with pytest.raises(ValidationError):
-        ChangePasswordRequest(
-            current_password="oldpass",
-            new_password="123",
-            confirm_password="123",
-        )
-
-
-def test_valid_forgot_password_request():
-    request = ForgotPasswordRequest(
-        email="employee1@mediatize.com",
-    )
-
-    assert request.email == "employee1@mediatize.com"
-
-
-def test_invalid_forgot_password_email_is_rejected():
-    with pytest.raises(ValidationError):
-        ForgotPasswordRequest(
-            email="invalid-email",
-        )
+    assert response.id == 1
+    assert response.email == "hr@example.com"
+    assert response.role == "HR"
+    assert response.is_active is True

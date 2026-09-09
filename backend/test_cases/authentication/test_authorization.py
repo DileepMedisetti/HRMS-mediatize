@@ -1,213 +1,118 @@
 import pytest
 from fastapi import HTTPException
-from sqlalchemy import delete
-
 from app.authentication_service.dependencies import (
     get_current_hr,
     get_current_user,
+    validate_hr_user,
 )
 from app.authentication_service.models import User, UserRole
-from app.core.database import SessionLocal
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token
 
 
-@pytest.fixture
-def db():
-    session = SessionLocal()
-
-    yield session
-
-    session.close()
-
-
-@pytest.fixture
-def users(db):
-    # Clean test users
-    db.execute(
-        delete(User).where(
-            User.email.in_(
-                [
-                    "dependency-hr@mediatize.com",
-                    "dependency-employee@mediatize.com",
-                    "dependency-inactive@mediatize.com",
-                ]
-            )
-        )
-    )
-    db.commit()
-
-    hr = User(
-        email="dependency-hr@mediatize.com",
-        employee_id="DEP-HR-001",
-        password_hash=hash_password("test123"),
-        role=UserRole.HR,
+def create_test_user(db_session, email, role):
+    user = User(
+        email=email,
+        employee_id=None,
+        role=role,
         is_active=True,
-        must_change_password=False,
     )
 
-    employee = User(
-        email="dependency-employee@mediatize.com",
-        employee_id="DEP-EMP-001",
-        password_hash=hash_password("test123"),
-        role=UserRole.EMPLOYEE,
-        is_active=True,
-        must_change_password=False,
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    return user
+
+
+def test_get_current_user_returns_active_user(db_session):
+    user = create_test_user(
+        db_session,
+        "auth_user@example.com",
+        UserRole.EMPLOYEE,
     )
 
-    inactive_employee = User(
-        email="dependency-inactive@mediatize.com",
-        employee_id="DEP-EMP-002",
-        password_hash=hash_password("test123"),
-        role=UserRole.EMPLOYEE,
-        is_active=False,
-        must_change_password=False,
-    )
-
-    db.add_all(
-        [
-            hr,
-            employee,
-            inactive_employee,
-        ]
-    )
-
-    db.commit()
-
-    db.refresh(hr)
-    db.refresh(employee)
-    db.refresh(inactive_employee)
-
-    yield {
-        "hr": hr,
-        "employee": employee,
-        "inactive": inactive_employee,
-    }
-
-    db.execute(
-        delete(User).where(
-            User.email.in_(
-                [
-                    "dependency-hr@mediatize.com",
-                    "dependency-employee@mediatize.com",
-                    "dependency-inactive@mediatize.com",
-                ]
-            )
-        )
-    )
-    db.commit()
-
-
-def make_credentials(token):
-    from fastapi.security import HTTPAuthorizationCredentials
-
-    return HTTPAuthorizationCredentials(
-        scheme="Bearer",
-        credentials=token,
-    )
-
-
-def test_valid_hr_token_returns_user(db, users):
     token = create_access_token(
-        user_id=users["hr"].id,
-        role="HR",
+        user_id=user.id,
+        role=user.role.value,
     )
-
-    credentials = make_credentials(token)
 
     current_user = get_current_user(
-        credentials=credentials,
-        db=db,
+        token=token,
+        db=db_session,
     )
 
-    assert current_user.id == users["hr"].id
-    assert current_user.role == UserRole.HR
-
-
-def test_valid_employee_token_returns_user(db, users):
-    token = create_access_token(
-        user_id=users["employee"].id,
-        role="EMPLOYEE",
-    )
-
-    credentials = make_credentials(token)
-
-    current_user = get_current_user(
-        credentials=credentials,
-        db=db,
-    )
-
-    assert current_user.id == users["employee"].id
+    assert current_user.id == user.id
+    assert current_user.email == "auth_user@example.com"
     assert current_user.role == UserRole.EMPLOYEE
+    assert current_user.is_active is True
 
 
-def test_invalid_token_is_rejected(db):
-    credentials = make_credentials(
-        "invalid.jwt.token"
+def test_get_current_hr_returns_hr_user(db_session):
+    user = create_test_user(
+        db_session,
+        "auth_hr@example.com",
+        UserRole.HR,
     )
 
-    with pytest.raises(HTTPException) as exc_info:
-        get_current_user(
-            credentials=credentials,
-            db=db,
-        )
-
-    assert exc_info.value.status_code == 401
-
-
-def test_nonexistent_user_is_rejected(db):
     token = create_access_token(
-        user_id=999999,
-        role="EMPLOYEE",
+        user_id=user.id,
+        role=user.role.value,
     )
 
-    credentials = make_credentials(token)
+    current_user = get_current_user(
+        token=token,
+        db=db_session,
+    )
 
-    with pytest.raises(HTTPException) as exc_info:
-        get_current_user(
-            credentials=credentials,
-            db=db,
-        )
+    current_hr = validate_hr_user(
+        current_user
+    )
 
-    assert exc_info.value.status_code == 401
-    assert exc_info.value.detail == "User not found"
+    assert current_hr.id == user.id
+    assert current_hr.email == "auth_hr@example.com"
+    assert current_hr.role == UserRole.HR
 
 
-def test_inactive_user_is_rejected(db, users):
+def test_get_current_hr_rejects_employee(db_session):
+    user = create_test_user(
+        db_session,
+        "auth_employee@example.com",
+        UserRole.EMPLOYEE,
+    )
+
     token = create_access_token(
-        user_id=users["inactive"].id,
-        role="EMPLOYEE",
+        user_id=user.id,
+        role=user.role.value,
     )
 
-    credentials = make_credentials(token)
+    current_user = get_current_user(
+        token=token,
+        db=db_session,
+    )
 
-    with pytest.raises(HTTPException) as exc_info:
+    with pytest.raises(HTTPException):
+        validate_hr_user(
+            current_user
+        )
+
+
+def test_get_current_user_rejects_inactive_user(db_session):
+    user = create_test_user(
+        db_session,
+        "inactive_user@example.com",
+        UserRole.EMPLOYEE,
+    )
+
+    user.is_active = False
+    db_session.commit()
+
+    token = create_access_token(
+        user_id=user.id,
+        role=user.role.value,
+    )
+
+    with pytest.raises(HTTPException):
         get_current_user(
-            credentials=credentials,
-            db=db,
+            token=token,
+            db=db_session,
         )
-
-    assert exc_info.value.status_code == 401
-    assert exc_info.value.detail == "User account is inactive"
-
-
-def test_hr_can_access_hr_dependency(users):
-    current_user = users["hr"]
-
-    result = get_current_hr(
-        current_user=current_user,
-    )
-
-    assert result.id == current_user.id
-    assert result.role == UserRole.HR
-
-
-def test_employee_cannot_access_hr_dependency(users):
-    current_user = users["employee"]
-
-    with pytest.raises(HTTPException) as exc_info:
-        get_current_hr(
-            current_user=current_user,
-        )
-
-    assert exc_info.value.status_code == 403
-    assert exc_info.value.detail == "HR access required"

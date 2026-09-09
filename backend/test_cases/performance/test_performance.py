@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.authentication_service.models import User, UserRole
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token
 from app.employee_service.models import Employee, EmploymentStatus
 from app.performance_service.models import GoalStatus, PerformanceGoal, PerformanceReview, ReviewStatus
 from app.main import app
@@ -20,7 +20,6 @@ def test_performance_setup(db_session):
     if not hr_user:
         hr_user = User(
             email="hr.perf@example.com",
-            password_hash=hash_password("Password123!"),
             role=UserRole.HR,
             is_active=True,
         )
@@ -31,7 +30,6 @@ def test_performance_setup(db_session):
     if not emp_user1:
         emp_user1 = User(
             email="emp1.perf@example.com",
-            password_hash=hash_password("Password123!"),
             role=UserRole.EMPLOYEE,
             is_active=True,
         )
@@ -42,7 +40,6 @@ def test_performance_setup(db_session):
     if not emp_user2:
         emp_user2 = User(
             email="emp2.perf@example.com",
-            password_hash=hash_password("Password123!"),
             role=UserRole.EMPLOYEE,
             is_active=True,
         )
@@ -291,3 +288,18 @@ def test_hr_performance_dashboard(db_session, test_performance_setup):
     assert "reviews_completed" in data
     assert "reviews_pending" in data
     assert "goals_completed" in data
+
+
+def test_hr_performance_analytics(db_session, test_performance_setup):
+    client = TestClient(app)
+    setup = test_performance_setup
+
+    res = client.get("/performance/analytics", headers=setup["hr_headers"])
+    assert res.status_code == 200
+    data = res.json()
+    assert "ratings_by_employee" in data
+    assert "performance_trends" in data
+    assert "goal_status_distribution" in data
+    assert "category_ratings" in data
+    assert "review_status_distribution" in data
+

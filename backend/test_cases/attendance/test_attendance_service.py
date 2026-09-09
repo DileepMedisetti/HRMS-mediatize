@@ -5,14 +5,12 @@ import pytest
 from app.attendance_service.models import AttendanceStatus
 from app.attendance_service import service
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
 from app.employee_service.models import Employee, EmploymentStatus
 
 
 def test_service_check_in_and_check_out(db_session):
     user = User(
         email="att_srv_user@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )
@@ -55,7 +53,6 @@ def test_service_check_in_and_check_out(db_session):
 def test_service_check_out_without_check_in(db_session):
     user = User(
         email="att_srv_nocheckin@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )
@@ -80,7 +77,6 @@ def test_service_check_out_without_check_in(db_session):
 def test_service_archived_employee_cannot_check_in(db_session):
     user = User(
         email="att_srv_archived@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )

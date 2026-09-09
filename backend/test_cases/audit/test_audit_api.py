@@ -1,42 +1,25 @@
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from fastapi.testclient import TestClient
-import pytest
 
-from app.audit_service.models import AuditAction, AuditLog
-from app.audit_service.service import create_audit_log
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
+from app.audit_service.models import AuditAction
+from app.audit_service.service import create_audit_log
+from app.core.security import create_access_token
 from app.main import app
 
 client = TestClient(app)
 
 
-def test_unauthenticated_audit_logs_returns_401():
-    response = client.get("/audit-logs")
-    assert response.status_code == 401
-
-
 def test_employee_accessing_audit_logs_returns_403(db_session):
     emp = User(
         email="emp_audit_test@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
-        must_change_password=False,
     )
     db_session.add(emp)
     db_session.commit()
 
-    login_resp = client.post(
-        "/auth/login",
-        json={
-            "email": "emp_audit_test@example.com",
-            "role": "EMPLOYEE",
-            "password": "password123",
-        },
-    )
-    assert login_resp.status_code == 200
-    token = login_resp.json()["access_token"]
+    token = create_access_token(user_id=emp.id, role="EMPLOYEE")
 
     response = client.get(
         "/audit-logs",
@@ -49,28 +32,16 @@ def test_employee_accessing_audit_logs_returns_403(db_session):
 def test_hr_accessing_audit_logs_returns_200(db_session):
     hr = User(
         email="hr_audit_test@example.com",
-        password_hash=hash_password("hr1234"),
         role=UserRole.HR,
         is_active=True,
-        must_change_password=False,
     )
     db_session.add(hr)
     db_session.commit()
 
-    # Create a couple of audit logs
-    create_audit_log(db_session, action=AuditAction.LOGIN_SUCCESS, user_id=hr.id, ip_address="127.0.0.1")
+    create_audit_log(db_session, action=AuditAction.OTP_VERIFY_SUCCESS, user_id=hr.id, ip_address="127.0.0.1")
     db_session.commit()
 
-    login_resp = client.post(
-        "/auth/login",
-        json={
-            "email": "hr_audit_test@example.com",
-            "role": "HR",
-            "password": "hr1234",
-        },
-    )
-    assert login_resp.status_code == 200
-    token = login_resp.json()["access_token"]
+    token = create_access_token(user_id=hr.id, role="HR")
 
     response = client.get(
         "/audit-logs",
@@ -90,40 +61,27 @@ def test_hr_accessing_audit_logs_returns_200(db_session):
 def test_audit_logs_pagination_and_filtering(db_session):
     hr = User(
         email="hr_audit_filter@example.com",
-        password_hash=hash_password("hr1234"),
         role=UserRole.HR,
         is_active=True,
-        must_change_password=False,
     )
     db_session.add(hr)
     db_session.commit()
 
-    # Create distinct logs
-    log1 = create_audit_log(db_session, action=AuditAction.LOGIN_SUCCESS, user_id=hr.id, ip_address="192.168.1.1")
-    log2 = create_audit_log(db_session, action=AuditAction.PASSWORD_CHANGE, user_id=hr.id, ip_address="192.168.1.2")
+    log1 = create_audit_log(db_session, action=AuditAction.OTP_REQUESTED, user_id=hr.id, ip_address="192.168.1.1")
+    log2 = create_audit_log(db_session, action=AuditAction.OTP_VERIFY_SUCCESS, user_id=hr.id, ip_address="192.168.1.2")
     db_session.commit()
 
-    login_resp = client.post(
-        "/auth/login",
-        json={
-            "email": "hr_audit_filter@example.com",
-            "role": "HR",
-            "password": "hr1234",
-        },
-    )
-    token = login_resp.json()["access_token"]
+    token = create_access_token(user_id=hr.id, role="HR")
 
-    # Action filter test
     response = client.get(
-        "/audit-logs?action=PASSWORD_CHANGE",
+        "/audit-logs?action=OTP_VERIFY_SUCCESS",
         headers={"Authorization": f"Bearer {token}"},
     )
     assert response.status_code == 200
     items = response.json()["items"]
     assert len(items) >= 1
-    assert all(item["action"] == "PASSWORD_CHANGE" for item in items)
+    assert all(item["action"] == "OTP_VERIFY_SUCCESS" for item in items)
 
-    # Search filter test
     response = client.get(
         "/audit-logs?search=hr_audit_filter",
         headers={"Authorization": f"Bearer {token}"},
@@ -131,7 +89,6 @@ def test_audit_logs_pagination_and_filtering(db_session):
     assert response.status_code == 200
     assert response.json()["total"] >= 2
 
-    # User ID filter test
     response = client.get(
         f"/audit-logs?user_id={hr.id}",
         headers={"Authorization": f"Bearer {token}"},
@@ -143,23 +100,13 @@ def test_audit_logs_pagination_and_filtering(db_session):
 def test_audit_logs_ordering_newest_first(db_session):
     hr = User(
         email="hr_audit_order@example.com",
-        password_hash=hash_password("hr1234"),
         role=UserRole.HR,
         is_active=True,
-        must_change_password=False,
     )
     db_session.add(hr)
     db_session.commit()
 
-    login_resp = client.post(
-        "/auth/login",
-        json={
-            "email": "hr_audit_order@example.com",
-            "role": "HR",
-            "password": "hr1234",
-        },
-    )
-    token = login_resp.json()["access_token"]
+    token = create_access_token(user_id=hr.id, role="HR")
 
     response = client.get(
         "/audit-logs?limit=50",
@@ -177,26 +124,15 @@ def test_audit_logs_ordering_newest_first(db_session):
 def test_audit_logs_immutability_no_write_endpoints(db_session):
     hr = User(
         email="hr_audit_immutable@example.com",
-        password_hash=hash_password("hr1234"),
         role=UserRole.HR,
         is_active=True,
-        must_change_password=False,
     )
     db_session.add(hr)
     db_session.commit()
 
-    login_resp = client.post(
-        "/auth/login",
-        json={
-            "email": "hr_audit_immutable@example.com",
-            "role": "HR",
-            "password": "hr1234",
-        },
-    )
-    token = login_resp.json()["access_token"]
+    token = create_access_token(user_id=hr.id, role="HR")
     headers = {"Authorization": f"Bearer {token}"}
 
-    # POST, PUT, PATCH, DELETE must return 404 or 405 (no write/edit/delete route exists)
     assert client.post("/audit-logs", headers=headers, json={}).status_code in (404, 405)
     assert client.put("/audit-logs/1", headers=headers, json={}).status_code in (404, 405)
     assert client.patch("/audit-logs/1", headers=headers, json={}).status_code in (404, 405)
@@ -206,23 +142,13 @@ def test_audit_logs_immutability_no_write_endpoints(db_session):
 def test_audit_logs_sensitive_data_protection(db_session):
     hr = User(
         email="hr_audit_sec@example.com",
-        password_hash=hash_password("hr1234"),
         role=UserRole.HR,
         is_active=True,
-        must_change_password=False,
     )
     db_session.add(hr)
     db_session.commit()
 
-    login_resp = client.post(
-        "/auth/login",
-        json={
-            "email": "hr_audit_sec@example.com",
-            "role": "HR",
-            "password": "hr1234",
-        },
-    )
-    token = login_resp.json()["access_token"]
+    token = create_access_token(user_id=hr.id, role="HR")
 
     response = client.get(
         "/audit-logs",

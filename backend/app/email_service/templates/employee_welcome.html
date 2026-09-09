@@ -69,7 +69,7 @@
                         </td>
                     </tr>
 
-                    <!-- Main Content Body -->
+                    <!-- Main Content -->
                     <tr>
                         <td style="padding: 40px 40px 30px;">
 
@@ -97,10 +97,11 @@
                                 font-size: 15px;
                                 line-height: 1.7;
                             ">
-                                Your employee account has been successfully created. You can use the credentials below to sign in to the Mediatize Tech HRMS portal.
+                                Your employee account has been successfully created
+                                in the Mediatize Tech HRMS portal.
                             </p>
 
-                            <!-- LOGIN CREDENTIALS CARD -->
+                            <!-- ACCOUNT DETAILS CARD -->
                             <div style="
                                 background-color: #f8fafc;
                                 border: 1px solid #e2e8f0;
@@ -119,35 +120,145 @@
                                     border-bottom: 1px solid #cbd5e1;
                                     padding-bottom: 8px;
                                 ">
-                                    LOGIN CREDENTIALS
+                                    ACCOUNT DETAILS
                                 </p>
 
-                                <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <table
+                                    width="100%"
+                                    cellpadding="0"
+                                    cellspacing="0"
+                                    border="0"
+                                >
+
                                     <tr>
-                                        <td style="padding: 6px 0; color: #64748b; font-size: 14px; width: 140px; font-weight: 600;">
+                                        <td style="
+                                            padding: 6px 0;
+                                            color: #64748b;
+                                            font-size: 14px;
+                                            width: 140px;
+                                            font-weight: 600;
+                                        ">
                                             Employee Code:
                                         </td>
-                                        <td style="padding: 6px 0; color: #0f172a; font-size: 14px; font-weight: 700; font-family: monospace;">
+
+                                        <td style="
+                                            padding: 6px 0;
+                                            color: #0f172a;
+                                            font-size: 14px;
+                                            font-weight: 700;
+                                            font-family: monospace;
+                                        ">
                                             {{ employee_code }}
                                         </td>
                                     </tr>
+
                                     <tr>
-                                        <td style="padding: 6px 0; color: #64748b; font-size: 14px; font-weight: 600;">
+                                        <td style="
+                                            padding: 6px 0;
+                                            color: #64748b;
+                                            font-size: 14px;
+                                            font-weight: 600;
+                                        ">
                                             Email:
                                         </td>
-                                        <td style="padding: 6px 0; color: #0f172a; font-size: 14px; font-weight: 600; word-break: break-all;">
+
+                                        <td style="
+                                            padding: 6px 0;
+                                            color: #0f172a;
+                                            font-size: 14px;
+                                            font-weight: 600;
+                                            word-break: break-all;
+                                        ">
                                             {{ employee_email }}
                                         </td>
                                     </tr>
+
                                     <tr>
-                                        <td style="padding: 6px 0; color: #64748b; font-size: 14px; font-weight: 600;">
-                                            Temporary Password:
+                                        <td style="
+                                            padding: 6px 0;
+                                            color: #64748b;
+                                            font-size: 14px;
+                                            font-weight: 600;
+                                        ">
+                                            Authentication:
                                         </td>
-                                        <td style="padding: 6px 0; color: #2563eb; font-size: 16px; font-weight: 700; font-family: monospace; letter-spacing: 1px; word-break: break-all;">
-                                            {{ temporary_password }}
+
+                                        <td style="
+                                            padding: 6px 0;
+                                            color: #2563eb;
+                                            font-size: 14px;
+                                            font-weight: 700;
+                                        ">
+                                            Email OTP
                                         </td>
                                     </tr>
+
                                 </table>
+
+                            </div>
+
+                            <!-- HOW TO LOGIN -->
+                            <div style="
+                                background-color: #eff6ff;
+                                border: 1px solid #bfdbfe;
+                                border-radius: 8px;
+                                padding: 24px;
+                                margin-bottom: 25px;
+                            ">
+
+                                <p style="
+                                    margin: 0 0 14px;
+                                    color: #1e3a8a;
+                                    font-size: 14px;
+                                    font-weight: 700;
+                                ">
+                                    HOW TO SIGN IN
+                                </p>
+
+                                <p style="
+                                    margin: 0 0 8px;
+                                    color: #374151;
+                                    font-size: 14px;
+                                    line-height: 1.7;
+                                ">
+                                    1. Open the Mediatize Tech HRMS portal.
+                                </p>
+
+                                <p style="
+                                    margin: 0 0 8px;
+                                    color: #374151;
+                                    font-size: 14px;
+                                    line-height: 1.7;
+                                ">
+                                    2. Enter your registered email address.
+                                </p>
+
+                                <p style="
+                                    margin: 0 0 8px;
+                                    color: #374151;
+                                    font-size: 14px;
+                                    line-height: 1.7;
+                                ">
+                                    3. Request a login verification code.
+                                </p>
+
+                                <p style="
+                                    margin: 0 0 8px;
+                                    color: #374151;
+                                    font-size: 14px;
+                                    line-height: 1.7;
+                                ">
+                                    4. Enter the 6-digit OTP sent to your email.
+                                </p>
+
+                                <p style="
+                                    margin: 0;
+                                    color: #374151;
+                                    font-size: 14px;
+                                    line-height: 1.7;
+                                ">
+                                    5. You will be securely signed in to HRMS.
+                                </p>
 
                             </div>
 
@@ -161,6 +272,7 @@
                             >
                                 <tr>
                                     <td align="center">
+
                                         <a
                                             href="{{ login_url }}"
                                             style="
@@ -178,17 +290,19 @@
                                         >
                                             LOGIN TO HRMS
                                         </a>
+
                                     </td>
                                 </tr>
                             </table>
 
-                            <!-- PLAIN TEXT FALLBACK LOGIN URL -->
+                            <!-- LOGIN URL -->
                             <div style="
                                 background-color: #f1f5f9;
                                 border-radius: 6px;
                                 padding: 14px 16px;
                                 margin-bottom: 25px;
                             ">
+
                                 <p style="
                                     margin: 0 0 6px;
                                     color: #475569;
@@ -199,6 +313,7 @@
                                 ">
                                     Login URL:
                                 </p>
+
                                 <p style="
                                     margin: 0;
                                     color: #2563eb;
@@ -206,26 +321,40 @@
                                     word-break: break-all;
                                     font-family: monospace;
                                 ">
-                                    <a href="{{ login_url }}" style="color: #2563eb; text-decoration: underline;">{{ login_url }}</a>
+                                    <a
+                                        href="{{ login_url }}"
+                                        style="
+                                            color: #2563eb;
+                                            text-decoration: underline;
+                                        "
+                                    >
+                                        {{ login_url }}
+                                    </a>
                                 </p>
+
                             </div>
 
-                            <!-- SECURITY WARNING -->
+                            <!-- SECURITY NOTICE -->
                             <div style="
-                                background-color: #fff7ed;
-                                border-left: 4px solid #f97316;
+                                background-color: #eff6ff;
+                                border-left: 4px solid #2563eb;
                                 padding: 16px;
                                 margin-bottom: 25px;
                                 border-radius: 0 6px 6px 0;
                             ">
+
                                 <p style="
                                     margin: 0;
-                                    color: #9a3412;
+                                    color: #1e40af;
                                     font-size: 13.5px;
                                     line-height: 1.6;
                                 ">
-                                    <strong>Security Notice:</strong> For security reasons, please change your temporary password after signing in for the first time.
+                                    <strong>Security Notice:</strong>
+                                    HRMS uses passwordless authentication.
+                                    A new 6-digit verification code will be sent
+                                    to your registered email whenever you sign in.
                                 </p>
+
                             </div>
 
                             <p style="
@@ -234,6 +363,7 @@
                                 font-size: 13px;
                                 line-height: 1.6;
                             ">
+                                Never share your verification code with anyone.
                                 If you did not expect this account, please contact HR.
                             </p>
 
@@ -245,7 +375,12 @@
                             ">
                                 Regards,<br>
                                 <strong>Mediatize Tech HRMS</strong><br>
-                                <span style="color: #64748b; font-size: 13px;">Mediatize Tech Pvt. Ltd.</span>
+                                <span style="
+                                    color: #64748b;
+                                    font-size: 13px;
+                                ">
+                                    Mediatize Tech Pvt. Ltd.
+                                </span>
                             </p>
 
                         </td>
@@ -261,6 +396,7 @@
                                 padding: 22px 20px;
                             "
                         >
+
                             <p style="
                                 margin: 0 0 6px;
                                 color: #334155;
@@ -275,8 +411,10 @@
                                 color: #94a3b8;
                                 font-size: 12px;
                             ">
-                                This is an automated email from Mediatize Tech HRMS. Please do not reply to this email.
+                                This is an automated email from Mediatize Tech HRMS.
+                                Please do not reply to this email.
                             </p>
+
                         </td>
                     </tr>
 

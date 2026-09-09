@@ -4,14 +4,12 @@ from sqlalchemy.exc import IntegrityError
 
 from app.attendance_service.models import Attendance, AttendanceStatus
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
 from app.employee_service.models import Employee, EmploymentStatus
 
 
 def test_attendance_model_creation(db_session):
     user = User(
         email="att_model_user@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )
@@ -52,7 +50,6 @@ def test_attendance_model_creation(db_session):
 def test_attendance_unique_constraint(db_session):
     user = User(
         email="att_uniq_user@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )

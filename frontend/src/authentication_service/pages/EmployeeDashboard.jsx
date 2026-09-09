@@ -4,11 +4,13 @@ import { CalendarDays, Clock, UserRound, ArrowRight, AlertCircle, Award } from "
 
 import AppLayout from "../../shared/components/AppLayout";
 import DashboardDateTime from "../../shared/components/DashboardDateTime";
+import { getUserDisplayName } from "../../shared/components/Header";
 import { useAuth } from "../hooks/useAuth";
 import { getMyLeaveBalance } from "../../leave_service/services/leaveApi";
 
 export default function EmployeeDashboard() {
   const { user } = useAuth();
+  const displayName = getUserDisplayName(user);
   const [balances, setBalances] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,7 +34,7 @@ export default function EmployeeDashboard() {
       <div style={styles.welcomeBanner}>
         <div>
           <h2 style={styles.welcomeTitle}>
-            Welcome back, <span style={styles.highlight}>{user?.email?.split("@")[0] || "Employee"}</span>
+            Welcome back, <span style={styles.highlight}>{displayName !== "User" ? displayName : "Employee"}</span>
           </h2>
           <p style={styles.welcomeSubtitle}>
             Here's your personal workforce & self-service overview.

@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.authentication_service.models import User, UserRole
 from app.employee_service.models import Employee, EmploymentStatus
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token
 from app.project_service.models import (
     AssignmentStatus,
     Project,
@@ -35,7 +35,6 @@ def hr_user_and_token(db_session):
     unique_id = uuid.uuid4().hex[:8]
     user = User(
         email=f"hr_anc_{unique_id}@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.HR,
         is_active=True,
     )
@@ -52,7 +51,6 @@ def emp1_and_token(db_session):
     unique_id = uuid.uuid4().hex[:8]
     user = User(
         email=f"emp1_anc_{unique_id}@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )
@@ -81,7 +79,6 @@ def emp2_and_token(db_session):
     unique_id = uuid.uuid4().hex[:8]
     user = User(
         email=f"emp2_anc_{unique_id}@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )

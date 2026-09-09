@@ -10,7 +10,6 @@ from typing import Tuple
 import uuid
 from app.authentication_service.models import User, UserRole
 from app.employee_service.models import Employee, EmploymentStatus
-from app.core.security import hash_password
 
 from app.leave_service import service
 from app.leave_service.enums import LeaveDayType, LeaveStatus
@@ -29,7 +28,6 @@ def create_test_hr(db) -> User:
     unique_id = uuid.uuid4().hex[:8]
     user = User(
         email=f"hr_leave_{unique_id}@example.com",
-        password_hash=hash_password("hrpassword"),
         role=UserRole.HR,
         is_active=True,
     )
@@ -53,7 +51,6 @@ def create_test_employee(db, status=EmploymentStatus.ACTIVE, is_active=True) -> 
     unique_id = uuid.uuid4().hex[:8]
     user = User(
         email=f"emp_leave_{unique_id}@example.com",
-        password_hash=hash_password("emppassword"),
         role=UserRole.EMPLOYEE,
         is_active=is_active,
     )

@@ -28,7 +28,11 @@ from app.performance_service.models import (
 )
 from app.performance_service.schemas import (
     AttendanceContextSummary,
+    CategoryRatingMetric,
     EmployeePerformanceSummary,
+    EmployeeRatingMetric,
+    GoalProgressMetric,
+    HRPerformanceAnalyticsResponse,
     HRPerformanceDashboardResponse,
     LeaveContextSummary,
     PerformanceGoalCreate,
@@ -37,8 +41,10 @@ from app.performance_service.schemas import (
     PerformanceReviewCreate,
     PerformanceReviewResponse,
     PerformanceReviewUpdate,
+    PerformanceTrendMetric,
     ProjectMetricSummary,
     RatingResponse,
+    ReviewStatusMetric,
     TaskMetricSummary,
     WorkReportMetricSummary,
 )
@@ -762,3 +768,153 @@ def get_hr_performance_dashboard(db: Session) -> HRPerformanceDashboardResponse:
         goals_completed=goals_completed,
         goals_in_progress=goals_in_progress,
     )
+
+
+def get_hr_performance_analytics(db: Session) -> HRPerformanceAnalyticsResponse:
+    """
+    Aggregate real analytics data for HR Performance & Analytics Dashboard charts.
+    """
+    # 1. Performance Rating by Employee
+    emp_rating_stmt = (
+        select(
+            Employee.id.label("employee_id"),
+            Employee.first_name,
+            Employee.last_name,
+            Employee.employee_code,
+            func.avg(PerformanceReview.overall_rating).label("avg_rating"),
+            func.count(PerformanceReview.id).label("completed_count"),
+        )
+        .join(PerformanceReview, PerformanceReview.employee_id == Employee.id)
+        .where(
+            PerformanceReview.status == ReviewStatus.COMPLETED,
+            PerformanceReview.overall_rating.is_not(None),
+            Employee.deleted_at.is_(None),
+        )
+        .group_by(Employee.id, Employee.first_name, Employee.last_name, Employee.employee_code)
+        .order_by(func.avg(PerformanceReview.overall_rating).desc())
+    )
+    emp_ratings_rows = db.execute(emp_rating_stmt).all()
+
+    ratings_by_employee = [
+        EmployeeRatingMetric(
+            employee_id=r.employee_id,
+            employee_name=f"{r.first_name} {r.last_name}".strip(),
+            employee_code=r.employee_code,
+            average_rating=round(float(r.avg_rating), 1),
+            completed_reviews_count=int(r.completed_count),
+        )
+        for r in emp_ratings_rows
+    ]
+
+    # 2. Performance Trend over time
+    trend_stmt = (
+        select(PerformanceReview.completed_at, PerformanceReview.overall_rating)
+        .where(
+            PerformanceReview.status == ReviewStatus.COMPLETED,
+            PerformanceReview.completed_at.is_not(None),
+            PerformanceReview.overall_rating.is_not(None),
+        )
+        .order_by(PerformanceReview.completed_at.asc())
+    )
+    trend_rows = db.execute(trend_stmt).all()
+
+    trend_dict = {}
+    for completed_at, overall_rating in trend_rows:
+        if completed_at:
+            period_str = completed_at.strftime("%b %Y")
+            if period_str not in trend_dict:
+                trend_dict[period_str] = []
+            trend_dict[period_str].append(float(overall_rating))
+
+    performance_trends = [
+        PerformanceTrendMetric(
+            period=period,
+            average_rating=round(sum(ratings) / len(ratings), 1),
+            review_count=len(ratings),
+        )
+        for period, ratings in trend_dict.items()
+    ]
+
+    # 3. Goal / KPI Progress by Status
+    goal_counts_stmt = (
+        select(PerformanceGoal.status, func.count(PerformanceGoal.id).label("count"))
+        .group_by(PerformanceGoal.status)
+    )
+    goal_counts_rows = db.execute(goal_counts_stmt).all()
+    goal_map = {
+        row.status.value if hasattr(row.status, "value") else str(row.status): row.count
+        for row in goal_counts_rows
+    }
+
+    status_labels = [
+        (GoalStatus.COMPLETED.value, "Completed"),
+        (GoalStatus.IN_PROGRESS.value, "In Progress"),
+        (GoalStatus.NOT_STARTED.value, "Not Started"),
+        (GoalStatus.CANCELLED.value, "Cancelled"),
+    ]
+
+    goal_status_distribution = [
+        GoalProgressMetric(
+            status=st,
+            label=lbl,
+            count=int(goal_map.get(st, 0)),
+        )
+        for st, lbl in status_labels
+    ]
+
+    # 4. Performance Category Analysis
+    cat_stmt = (
+        select(
+            PerformanceReviewRating.category,
+            func.avg(PerformanceReviewRating.rating).label("avg_rating"),
+            func.count(PerformanceReviewRating.id).label("total_ratings"),
+        )
+        .join(PerformanceReview, PerformanceReviewRating.review_id == PerformanceReview.id)
+        .where(PerformanceReview.status == ReviewStatus.COMPLETED)
+        .group_by(PerformanceReviewRating.category)
+        .order_by(func.avg(PerformanceReviewRating.rating).desc())
+    )
+    cat_rows = db.execute(cat_stmt).all()
+
+    category_ratings = [
+        CategoryRatingMetric(
+            category=row.category,
+            average_rating=round(float(row.avg_rating), 1),
+            total_ratings=int(row.total_ratings),
+        )
+        for row in cat_rows
+    ]
+
+    # 5. Review Status Distribution
+    review_status_stmt = (
+        select(PerformanceReview.status, func.count(PerformanceReview.id).label("count"))
+        .group_by(PerformanceReview.status)
+    )
+    review_status_rows = db.execute(review_status_stmt).all()
+    review_status_map = {
+        row.status.value if hasattr(row.status, "value") else str(row.status): row.count
+        for row in review_status_rows
+    }
+
+    review_labels = [
+        (ReviewStatus.COMPLETED.value, "Completed"),
+        (ReviewStatus.DRAFT.value, "Draft"),
+    ]
+
+    review_status_distribution = [
+        ReviewStatusMetric(
+            status=st,
+            label=lbl,
+            count=int(review_status_map.get(st, 0)),
+        )
+        for st, lbl in review_labels
+    ]
+
+    return HRPerformanceAnalyticsResponse(
+        ratings_by_employee=ratings_by_employee,
+        performance_trends=performance_trends,
+        goal_status_distribution=goal_status_distribution,
+        category_ratings=category_ratings,
+        review_status_distribution=review_status_distribution,
+    )
+

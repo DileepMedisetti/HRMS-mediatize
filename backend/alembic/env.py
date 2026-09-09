@@ -6,39 +6,69 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.core.database import Base
 
+
+# --------------------------------------------------
 # Import all models so Alembic can detect their tables
-from app.authentication_service.models import User, PasswordResetRequest
+# --------------------------------------------------
+
+from app.authentication_service.models import User, EmailOTP
 from app.audit_service.models import AuditLog
 from app.employee_service.models import Employee
 from app.attendance_service.models import Attendance
 from app.notification_service.models import Notification
-from app.leave_service.models import LeaveType, LeaveBalance, LeaveRequest, LeaveAttachment
-from app.project_service.models import ProjectRole, Project, ProjectAssignment
-from app.announcement_service.models import Announcement, AnnouncementRead
+from app.leave_service.models import (
+    LeaveType,
+    LeaveBalance,
+    LeaveRequest,
+    LeaveAttachment,
+)
+from app.project_service.models import (
+    ProjectRole,
+    Project,
+    ProjectAssignment,
+)
+from app.announcement_service.models import (
+    Announcement,
+    AnnouncementRead,
+)
 from app.work_report_service.models import DailyWorkReport
 
 
-
-
+# --------------------------------------------------
 # Alembic Config object
+# --------------------------------------------------
+
 config = context.config
 
 
+# --------------------------------------------------
 # Configure Python logging
+# --------------------------------------------------
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
+# --------------------------------------------------
 # SQLAlchemy metadata
+# --------------------------------------------------
+
 target_metadata = Base.metadata
 
 
+# --------------------------------------------------
 # Get database URL from .env
+# --------------------------------------------------
+
 config.set_main_option(
     "sqlalchemy.url",
     settings.DATABASE_URL,
 )
 
+
+# --------------------------------------------------
+# Offline migrations
+# --------------------------------------------------
 
 def run_migrations_offline() -> None:
     """Run migrations in offline mode."""
@@ -58,11 +88,18 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+# --------------------------------------------------
+# Online migrations
+# --------------------------------------------------
+
 def run_migrations_online() -> None:
     """Run migrations in online mode."""
 
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        config.get_section(
+            config.config_ini_section,
+            {},
+        ),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -76,6 +113,10 @@ def run_migrations_online() -> None:
         with context.begin_transaction():
             context.run_migrations()
 
+
+# --------------------------------------------------
+# Run migrations
+# --------------------------------------------------
 
 if context.is_offline_mode():
     run_migrations_offline()

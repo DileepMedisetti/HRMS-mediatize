@@ -221,6 +221,12 @@ body {
 .hrms-input::placeholder,
 .hrms-textarea::placeholder {
   color: var(--text-muted);
+  opacity: 1;
+}
+
+.hrms-select option {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
 }
 
 /* Badges */
@@ -279,7 +285,7 @@ body {
 
 .hrms-table th {
   background-color: var(--bg-surface-elevated);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;

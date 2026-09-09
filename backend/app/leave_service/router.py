@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.authentication_service.dependencies import (
     get_current_hr,
-    get_current_user_with_password_check,
+    get_current_user,
 )
 from app.authentication_service.models import User
 from app.core.database import get_db
@@ -26,9 +26,11 @@ from app.leave_service.enums import LeaveDayType, LeaveStatus
 from app.leave_service.schemas import (
     LeaveBalanceResponse,
     LeaveBalanceUpdate,
+    LeaveCancelRequest,
     LeaveRequestCreate,
     LeaveRequestResponse,
     LeaveRequestReview,
+    LeaveRevokeRequest,
     LeaveTypeCreate,
     LeaveTypeResponse,
     LeaveTypeUpdate,
@@ -50,7 +52,7 @@ router = APIRouter(tags=["Leave Management"])
 )
 def get_active_leave_types_endpoint(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     return service.get_active_leave_types(db)
 
@@ -81,6 +83,7 @@ def create_leave_type_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.create_leave_type(
         db=db,
         type_in=type_in,
@@ -103,6 +106,7 @@ def update_leave_type_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.update_leave_type(
         db=db,
         leave_type_id=leave_type_id,
@@ -125,6 +129,7 @@ def activate_leave_type_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.activate_leave_type(
         db=db,
         leave_type_id=leave_type_id,
@@ -146,6 +151,7 @@ def deactivate_leave_type_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.deactivate_leave_type(
         db=db,
         leave_type_id=leave_type_id,
@@ -171,9 +177,10 @@ def get_my_leaves_endpoint(
     status_param: Optional[LeaveStatus] = Query(None, alias="status"),
     year: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     employee = service.get_employee_record_by_user(db, current_user)
+
     return service.get_employee_leaves(
         db=db,
         employee_id=employee.id,
@@ -193,10 +200,15 @@ def get_my_leaves_endpoint(
 def get_my_leave_balance_endpoint(
     year: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     employee = service.get_employee_record_by_user(db, current_user)
-    return service.get_employee_balances(db=db, employee_id=employee.id, year=year)
+
+    return service.get_employee_balances(
+        db=db,
+        employee_id=employee.id,
+        year=year,
+    )
 
 
 @router.get(
@@ -208,9 +220,13 @@ def get_my_leave_balance_endpoint(
 def get_my_leave_details_endpoint(
     leave_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
-    return service.get_leave_details(db=db, leave_id=leave_id, current_user=current_user)
+    return service.get_leave_details(
+        db=db,
+        leave_id=leave_id,
+        current_user=current_user,
+    )
 
 
 @router.post(
@@ -230,7 +246,7 @@ async def apply_leave_endpoint(
     reason: Optional[str] = Form(None),
     document: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     ip_address = request.client.host if request.client else None
 
@@ -239,6 +255,7 @@ async def apply_leave_endpoint(
         doc = None
     else:
         content_type = request.headers.get("content-type", "")
+
         if "application/json" in content_type:
             body = await request.json()
             req_in = LeaveRequestCreate(**body)
@@ -247,8 +264,12 @@ async def apply_leave_endpoint(
             if not leave_type_id or not start_date or not end_date or not reason:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="leave_type_id, start_date, end_date, and reason are required.",
+                    detail=(
+                        "leave_type_id, start_date, end_date, "
+                        "and reason are required."
+                    ),
                 )
+
             try:
                 parsed_start = date.fromisoformat(start_date)
                 parsed_end = date.fromisoformat(end_date)
@@ -266,6 +287,7 @@ async def apply_leave_endpoint(
                 end_day_type=end_day_type or LeaveDayType.FULL_DAY,
                 reason=reason,
             )
+
             doc = document
 
     return service.apply_leave(
@@ -281,18 +303,21 @@ async def apply_leave_endpoint(
     "/leaves/{leave_id}/cancel",
     response_model=LeaveRequestResponse,
     status_code=status.HTTP_200_OK,
-    summary="Cancel Pending Leave Request (Employee Only)",
+    summary="Cancel Pending or Approved Leave Request (Employee Only)",
 )
 def cancel_leave_endpoint(
     leave_id: int,
+    cancel_in: LeaveCancelRequest,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.cancel_leave(
         db=db,
         leave_id=leave_id,
+        cancel_in=cancel_in,
         current_user=current_user,
         ip_address=ip_address,
     )
@@ -338,9 +363,13 @@ def get_all_leaves_endpoint(
 def get_leave_details_endpoint(
     leave_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
-    return service.get_leave_details(db=db, leave_id=leave_id, current_user=current_user)
+    return service.get_leave_details(
+        db=db,
+        leave_id=leave_id,
+        current_user=current_user,
+    )
 
 
 @router.patch(
@@ -357,6 +386,7 @@ def approve_leave_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.approve_leave(
         db=db,
         leave_id=leave_id,
@@ -380,11 +410,36 @@ def reject_leave_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.reject_leave(
         db=db,
         leave_id=leave_id,
         review_in=review_in,
         current_user=current_hr,
+        ip_address=ip_address,
+    )
+
+
+@router.patch(
+    "/leaves/{leave_id}/revoke",
+    response_model=LeaveRequestResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Revoke Approved or Rejected Leave Decision (HR Only)",
+)
+def revoke_leave_endpoint(
+    leave_id: int,
+    revoke_in: LeaveRevokeRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_hr: User = Depends(get_current_hr),
+):
+    ip_address = request.client.host if request.client else None
+
+    return service.revoke_leave_decision(
+        db=db,
+        leave_id=leave_id,
+        revoke_in=revoke_in,
+        current_hr=current_hr,
         ip_address=ip_address,
     )
 
@@ -405,7 +460,11 @@ def get_employee_balances_endpoint(
     db: Session = Depends(get_db),
     current_hr: User = Depends(get_current_hr),
 ):
-    return service.get_employee_balances(db=db, employee_id=employee_id, year=year)
+    return service.get_employee_balances(
+        db=db,
+        employee_id=employee_id,
+        year=year,
+    )
 
 
 @router.put(
@@ -425,7 +484,9 @@ def update_employee_balance_endpoint(
 ):
     if year is None:
         year = date.today().year
+
     ip_address = request.client.host if request and request.client else None
+
     return service.update_employee_balance(
         db=db,
         employee_id=employee_id,

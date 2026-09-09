@@ -2,137 +2,114 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-import jwt
 
 from app.authentication_service.models import User, UserRole
 from app.core.database import get_db
 from app.core.security import decode_access_token
 
 
-security = HTTPBearer()
+security = HTTPBearer(
+    auto_error=False,
+)
 
-
-# ============================================================
-# Current User
-# ============================================================
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    token: HTTPAuthorizationCredentials | str | None = Depends(security),
     db: Session = Depends(get_db),
 ) -> User:
     """
-    Get the currently authenticated user from the JWT.
+    Return the currently authenticated active user.
+
+    Authentication is passwordless.
+
+    The user first verifies an OTP sent to their email.
+    Successful OTP verification creates a JWT.
+    This dependency validates that JWT and loads the
+    corresponding active user.
+
+    Supports:
+    - FastAPI dependency injection.
+    - Direct unit-test calls using token=<jwt>.
     """
 
-    token = credentials.credentials
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
 
-    # --------------------------------------------------------
-    # Decode and verify JWT
-    # --------------------------------------------------------
+    if isinstance(
+        token,
+        HTTPAuthorizationCredentials,
+    ):
+        access_token = token.credentials
+
+    elif isinstance(token, str):
+        access_token = token
+
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+        )
+
     try:
-        payload = decode_access_token(token)
-
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
+        payload = decode_access_token(
+            access_token
         )
 
-    except jwt.InvalidTokenError:
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid authentication credentials",
         )
 
-    # --------------------------------------------------------
-    # Get user ID from JWT
-    # --------------------------------------------------------
-    user_id = payload.get("sub")
+    subject = payload.get("sub")
 
-    if user_id is None:
+    if not subject:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid authentication credentials",
         )
 
-    # --------------------------------------------------------
-    # Validate user ID
-    # --------------------------------------------------------
     try:
-        user_id = int(user_id)
+        user_id = int(subject)
 
     except (TypeError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid authentication credentials",
         )
 
-    # --------------------------------------------------------
-    # Find user in database
-    # --------------------------------------------------------
-    statement = select(User).where(
-        User.id == user_id
+    user = db.scalar(
+        select(User).where(
+            User.id == user_id
+        )
     )
-
-    user = db.scalar(statement)
 
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # --------------------------------------------------------
-    # Check account status
-    # --------------------------------------------------------
     if not user.is_active:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
+            status_code=status.HTTP_403_FORBIDDEN,
             detail="User account is inactive",
-            headers={"WWW-Authenticate": "Bearer"},
         )
 
     return user
 
 
-# ============================================================
-# Password Change Required
-# ============================================================
-
-def get_current_user_with_password_check(
-    current_user: User = Depends(get_current_user),
+def validate_hr_user(
+    current_user: User,
 ) -> User:
     """
-    Get the currently authenticated user and ensure that
-    the user has completed any required password change.
+    Validate that the authenticated user has the HR role.
 
-    Users with must_change_password=True are blocked from
-    normal protected HRMS endpoints.
-    """
-
-    if current_user.must_change_password:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Password change required before accessing this resource",
-        )
-
-    return current_user
-
-
-# ============================================================
-# Current HR
-# ============================================================
-
-def get_current_hr(
-    current_user: User = Depends(get_current_user),
-) -> User:
-    """
-    Allow access only to HR users.
+    This is a normal Python helper and is intentionally kept
+    separate from FastAPI dependency injection.
     """
 
     if current_user.role != UserRole.HR:
@@ -142,3 +119,20 @@ def get_current_hr(
         )
 
     return current_user
+
+
+def get_current_hr(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Return the currently authenticated HR user.
+
+    FastAPI obtains the authenticated user through
+    get_current_user(), then validates the role.
+
+    Role is determined server-side from the database.
+    """
+
+    return validate_hr_user(
+        current_user
+    )

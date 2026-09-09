@@ -1,33 +1,9 @@
 from datetime import datetime, timedelta, timezone
 
 import jwt
-from pwdlib import PasswordHash
 
 from app.core.config import settings
 
-
-password_hash = PasswordHash.recommended()
-
-
-def hash_password(password: str) -> str:
-    """
-    Hash a plain-text password.
-    """
-    return password_hash.hash(password)
-
-
-def verify_password(
-    plain_password: str,
-    hashed_password: str,
-) -> bool:
-    """
-    Verify a plain-text password against its hash.
-    """
-    return password_hash.verify(
-        plain_password,
-        hashed_password,
-    )
-    
 
 # --------------------------------------------------
 # JWT Security
@@ -39,6 +15,10 @@ def create_access_token(
 ) -> str:
     """
     Create a JWT access token for an authenticated user.
+
+    Authentication is performed through email OTP verification.
+    This function is responsible only for issuing the JWT after
+    successful authentication.
     """
 
     now = datetime.now(timezone.utc)
@@ -66,6 +46,9 @@ def create_access_token(
 def decode_access_token(token: str) -> dict:
     """
     Decode and verify a JWT access token.
+
+    Raises a JWT exception if the token is invalid,
+    expired, or signed with an incorrect secret/algorithm.
     """
 
     payload = jwt.decode(

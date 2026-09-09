@@ -110,6 +110,30 @@ class LeaveRequestReview(BaseModel):
     hr_remarks: Optional[str] = Field(None, max_length=1000)
 
 
+class LeaveCancelRequest(BaseModel):
+    cancellation_reason: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("cancellation_reason")
+    @classmethod
+    def validate_cancellation_reason(cls, v: str) -> str:
+        v_stripped = v.strip()
+        if not v_stripped:
+            raise ValueError("cancellation_reason cannot be empty or whitespace only")
+        return v_stripped
+
+
+class LeaveRevokeRequest(BaseModel):
+    revocation_reason: str = Field(..., min_length=1, max_length=1000)
+
+    @field_validator("revocation_reason")
+    @classmethod
+    def validate_revocation_reason(cls, v: str) -> str:
+        v_stripped = v.strip()
+        if not v_stripped:
+            raise ValueError("revocation_reason cannot be empty or whitespace only")
+        return v_stripped
+
+
 class LeaveRequestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -129,6 +153,12 @@ class LeaveRequestResponse(BaseModel):
     hr_remarks: Optional[str] = None
     reviewed_by: Optional[int] = None
     reviewed_at: Optional[datetime] = None
+    cancellation_reason: Optional[str] = None
+    cancelled_by: Optional[int] = None
+    cancelled_at: Optional[datetime] = None
+    revocation_reason: Optional[str] = None
+    revoked_by: Optional[int] = None
+    revoked_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     attachments: List[LeaveAttachmentResponse] = []

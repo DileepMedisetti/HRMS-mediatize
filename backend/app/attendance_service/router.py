@@ -13,10 +13,11 @@ from app.attendance_service.schemas import (
 )
 from app.authentication_service.dependencies import (
     get_current_hr,
-    get_current_user_with_password_check,
+    get_current_user,
 )
 from app.authentication_service.models import User
 from app.core.database import get_db
+
 
 router = APIRouter(
     prefix="/attendance",
@@ -32,10 +33,11 @@ router = APIRouter(
 )
 def check_in_endpoint(
     request: Request,
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.check_in_employee(
         db=db,
         current_user=current_user,
@@ -51,10 +53,11 @@ def check_in_endpoint(
 )
 def check_out_endpoint(
     request: Request,
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.check_out_employee(
         db=db,
         current_user=current_user,
@@ -69,7 +72,7 @@ def check_out_endpoint(
     summary="Get Today's Attendance Status (Employee Only)",
 )
 def get_today_attendance_endpoint(
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return service.get_today_attendance(
@@ -87,10 +90,19 @@ def get_today_attendance_endpoint(
 def get_my_attendance_history_endpoint(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    from_date: Optional[date] = Query(None, description="Filter from date"),
-    to_date: Optional[date] = Query(None, description="Filter to date"),
-    status: Optional[AttendanceStatus] = Query(None, description="Filter by status"),
-    current_user: User = Depends(get_current_user_with_password_check),
+    from_date: Optional[date] = Query(
+        None,
+        description="Filter from date",
+    ),
+    to_date: Optional[date] = Query(
+        None,
+        description="Filter to date",
+    ),
+    status: Optional[AttendanceStatus] = Query(
+        None,
+        description="Filter by status",
+    ),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return service.get_employee_attendance_history(
@@ -113,11 +125,26 @@ def get_my_attendance_history_endpoint(
 def get_hr_attendance_list_endpoint(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    search: Optional[str] = Query(None, description="Search employee code/name/email"),
-    employee_id: Optional[int] = Query(None, description="Filter by employee ID"),
-    status: Optional[AttendanceStatus] = Query(None, description="Filter by status"),
-    from_date: Optional[date] = Query(None, description="Filter from date"),
-    to_date: Optional[date] = Query(None, description="Filter to date"),
+    search: Optional[str] = Query(
+        None,
+        description="Search employee code/name/email",
+    ),
+    employee_id: Optional[int] = Query(
+        None,
+        description="Filter by employee ID",
+    ),
+    status: Optional[AttendanceStatus] = Query(
+        None,
+        description="Filter by status",
+    ),
+    from_date: Optional[date] = Query(
+        None,
+        description="Filter from date",
+    ),
+    to_date: Optional[date] = Query(
+        None,
+        description="Filter to date",
+    ),
     current_hr: User = Depends(get_current_hr),
     db: Session = Depends(get_db),
 ):
@@ -141,7 +168,7 @@ def get_hr_attendance_list_endpoint(
 )
 def get_attendance_details_endpoint(
     attendance_id: int,
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     return service.get_attendance_by_id(

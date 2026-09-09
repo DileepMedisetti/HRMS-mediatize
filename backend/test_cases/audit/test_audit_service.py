@@ -3,7 +3,6 @@ from sqlalchemy import delete
 from app.audit_service.models import AuditAction, AuditLog
 from app.audit_service.service import create_audit_log
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
 
 
 TEST_EMAIL = "audit-service-test@mediatize.com"
@@ -35,7 +34,6 @@ def test_create_audit_log_with_user(db_session):
     user = User(
         email=TEST_EMAIL,
         employee_id="AUDIT001",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )

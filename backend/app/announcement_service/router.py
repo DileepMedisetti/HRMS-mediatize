@@ -1,4 +1,5 @@
 from typing import List, Optional
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
@@ -29,10 +30,11 @@ from app.announcement_service.service import (
 )
 from app.authentication_service.dependencies import (
     get_current_hr,
-    get_current_user_with_password_check,
+    get_current_user,
 )
 from app.authentication_service.models import User
 from app.core.database import get_db
+
 
 router = APIRouter(
     prefix="/announcements",
@@ -46,16 +48,26 @@ router = APIRouter(
     status_code=status.HTTP_200_OK,
 )
 def search_projects_for_announcements_endpoint(
-    search: Optional[str] = Query(None, description="Search by project name or project code"),
+    search: Optional[str] = Query(
+        None,
+        description="Search by project name or project code",
+    ),
     limit: int = Query(20, ge=1, le=50),
     db: Session = Depends(get_db),
     current_hr: User = Depends(get_current_hr),
 ):
     """
-    Search projects for HR when selecting a project for a Project Announcement.
+    Search projects for HR when selecting a project for a
+    Project Announcement.
+
     HR Only.
     """
-    return search_projects_for_announcements(db=db, search=search, limit=limit)
+
+    return search_projects_for_announcements(
+        db=db,
+        search=search,
+        limit=limit,
+    )
 
 
 @router.post(
@@ -70,9 +82,15 @@ def create_announcement_endpoint(
 ):
     """
     Create a new announcement (Draft or Direct Publish).
+
     HR Only.
     """
-    return create_announcement(db=db, data=data, current_user=current_hr)
+
+    return create_announcement(
+        db=db,
+        data=data,
+        current_user=current_hr,
+    )
 
 
 @router.get(
@@ -84,7 +102,10 @@ def get_announcements_for_hr_endpoint(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     scope: Optional[AnnouncementScope] = Query(None),
-    status_filter: Optional[AnnouncementStatus] = Query(None, alias="status"),
+    status_filter: Optional[AnnouncementStatus] = Query(
+        None,
+        alias="status",
+    ),
     announcement_type: Optional[AnnouncementType] = Query(None),
     project_id: Optional[int] = Query(None),
     search: Optional[str] = Query(None),
@@ -93,8 +114,10 @@ def get_announcements_for_hr_endpoint(
 ):
     """
     Retrieve all announcements for HR with pagination and filters.
+
     HR Only.
     """
+
     return get_announcements_for_hr(
         db=db,
         current_user=current_hr,
@@ -121,12 +144,16 @@ def get_announcements_for_employee_endpoint(
     unread_only: bool = Query(False),
     search: Optional[str] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Retrieve authorized employee announcements feed.
-    Strictly IDOR protected at database level.
+
+    Authentication is JWT-based after successful OTP
+    verification. IDOR protection remains enforced by
+    the announcement service.
     """
+
     return get_announcements_for_employee(
         db=db,
         current_user=current_user,
@@ -147,11 +174,16 @@ def get_announcements_for_employee_endpoint(
 def get_announcement_by_id_endpoint(
     announcement_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Retrieve single announcement details. IDOR Protected.
+    Retrieve single announcement details.
+
+    Authentication is JWT-based after successful OTP
+    verification. IDOR protection remains enforced by
+    the announcement service.
     """
+
     return get_announcement_by_id(
         db=db,
         announcement_id=announcement_id,
@@ -171,8 +203,11 @@ def update_announcement_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     """
-    Update announcement details. HR Only.
+    Update announcement details.
+
+    HR Only.
     """
+
     return update_announcement(
         db=db,
         announcement_id=announcement_id,
@@ -192,8 +227,11 @@ def publish_announcement_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     """
-    Publish draft announcement. HR Only.
+    Publish draft announcement.
+
+    HR Only.
     """
+
     return publish_announcement(
         db=db,
         announcement_id=announcement_id,
@@ -212,8 +250,11 @@ def archive_announcement_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     """
-    Archive an announcement. HR Only.
+    Archive an announcement.
+
+    HR Only.
     """
+
     return archive_announcement(
         db=db,
         announcement_id=announcement_id,
@@ -229,11 +270,16 @@ def archive_announcement_endpoint(
 def mark_announcement_as_read_endpoint(
     announcement_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     """
-    Mark announcement as read. On demand. IDOR Protected.
+    Mark announcement as read.
+
+    Read records are created on demand.
+    IDOR protection remains enforced by the
+    announcement service.
     """
+
     return mark_announcement_as_read(
         db=db,
         announcement_id=announcement_id,

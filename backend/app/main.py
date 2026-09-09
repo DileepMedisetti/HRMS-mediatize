@@ -4,7 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.announcement_service.router import router as announcement_router
 from app.attendance_service.router import router as attendance_router
 from app.audit_service.router import router as audit_router
-from app.authentication_service.router import router as authentication_router
+from app.authentication_service.router import (
+    hr_router as hr_profile_router,
+    router as authentication_router,
+)
 from app.complaint_service.router import router as complaint_router
 from app.employee_service.router import router as employee_router
 from app.leave_service.router import router as leave_router
@@ -33,6 +36,7 @@ app.add_middleware(
 )
 
 app.include_router(authentication_router)
+app.include_router(hr_profile_router)
 app.include_router(employee_router)
 app.include_router(audit_router)
 app.include_router(attendance_router)

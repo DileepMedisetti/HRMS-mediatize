@@ -14,6 +14,8 @@ function getStatusBadge(status) {
       return { label: "REJECTED", bg: "rgba(239, 68, 68, 0.2)", color: "#f87171" };
     case "CANCELLED":
       return { label: "CANCELLED", bg: "rgba(148, 163, 184, 0.2)", color: "#94a3b8" };
+    case "REVOKED":
+      return { label: "REVOKED", bg: "rgba(100, 116, 139, 0.2)", color: "#cbd5e1" };
     default:
       return { label: "PENDING", bg: "rgba(234, 179, 8, 0.2)", color: "#facc15" };
   }
@@ -27,6 +29,7 @@ function Leave() {
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState(null);
+  const [cancellationReason, setCancellationReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
 
   // Form fields
@@ -164,13 +167,19 @@ function Leave() {
     }
   };
 
-  const confirmCancelRequest = async () => {
+  const confirmCancelRequest = async (e) => {
+    if (e) e.preventDefault();
     if (!cancelTargetId) return;
+    if (!cancellationReason.trim()) {
+      showWarning("Cancellation reason is required.");
+      return;
+    }
     setCancelling(true);
     try {
-      await cancelLeave(cancelTargetId);
+      await cancelLeave(cancelTargetId, { cancellation_reason: cancellationReason.trim() });
       showSuccess("Leave request cancelled successfully.");
       setCancelTargetId(null);
+      setCancellationReason("");
       fetchData();
     } catch (err) {
       console.error("Failed to cancel leave request", err);
@@ -296,10 +305,13 @@ function Leave() {
                         </span>
                       </td>
                       <td style={styles.td}>
-                        {req.status === "PENDING" && (
+                        {(req.status === "PENDING" || req.status === "APPROVED") && (
                           <button
                             style={styles.cancelBtn}
-                            onClick={() => setCancelTargetId(req.id)}
+                            onClick={() => {
+                              setCancelTargetId(req.id);
+                              setCancellationReason("");
+                            }}
                           >
                             Cancel
                           </button>
@@ -463,13 +475,13 @@ function Leave() {
                   {/* Reason */}
                   <div style={styles.formGroup}>
                     <label style={styles.label}>
-                      Reason <span style={styles.required}>*</span>
+                      Reason for Leave <span style={styles.required}>*</span>
                     </label>
                     <textarea
                       style={styles.textarea}
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
-                      placeholder="Provide a detailed reason for leave..."
+                      placeholder="Please provide a clear reason..."
                       required
                     />
                   </div>
@@ -479,9 +491,9 @@ function Leave() {
                     <label style={styles.label}>Supporting Document (Optional)</label>
                     <input
                       type="file"
-                      style={styles.fileInput}
+                      style={styles.input}
                       onChange={(e) => setFile(e.target.files[0] || null)}
-                      accept=".pdf,.png,.jpg,.jpeg"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                     />
                   </div>
                 </div>
@@ -490,7 +502,7 @@ function Leave() {
                   <div className="hrms-modal-footer-actions">
                     <button
                       type="button"
-                      style={styles.cancelModalBtn}
+                      style={styles.secondaryBtn}
                       onClick={() => setShowApplyModal(false)}
                     >
                       Cancel
@@ -505,16 +517,61 @@ function Leave() {
           </div>
         )}
 
-        <ConfirmDialog
-          isOpen={Boolean(cancelTargetId)}
-          onClose={() => setCancelTargetId(null)}
-          onConfirm={confirmCancelRequest}
-          title="Cancel Leave Request"
-          message="Are you sure you want to cancel this leave request? This action cannot be undone."
-          confirmText="Yes, Cancel Leave"
-          confirmVariant="danger"
-          loading={cancelling}
-        />
+        {/* Cancel Leave Modal */}
+        {Boolean(cancelTargetId) && (
+          <div style={styles.modalOverlay} onClick={() => setCancelTargetId(null)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h3 style={styles.modalTitle}>Cancel Leave Request</h3>
+                <button
+                  type="button"
+                  style={styles.closeBtn}
+                  onClick={() => setCancelTargetId(null)}
+                  aria-label="Close modal"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <form onSubmit={confirmCancelRequest} style={styles.formContent}>
+                <div style={styles.modalBody}>
+                  <p style={{ color: "var(--text-primary)", fontSize: "0.9rem", margin: 0 }}>
+                    Please provide a reason for cancelling this leave request.
+                  </p>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>
+                      Cancellation Reason <span style={styles.required}>*</span>
+                    </label>
+                    <textarea
+                      style={styles.textarea}
+                      value={cancellationReason}
+                      onChange={(e) => setCancellationReason(e.target.value)}
+                      placeholder="Enter reason for cancellation..."
+                      required
+                    />
+                  </div>
+                </div>
+                <div style={styles.modalFooter}>
+                  <div className="hrms-modal-footer-actions">
+                    <button
+                      type="button"
+                      style={styles.secondaryBtn}
+                      onClick={() => setCancelTargetId(null)}
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      style={{ ...styles.primaryBtn, backgroundColor: "var(--danger-color)" }}
+                      disabled={cancelling}
+                    >
+                      {cancelling ? "Cancelling..." : "Confirm Cancellation"}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );

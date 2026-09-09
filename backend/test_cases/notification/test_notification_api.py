@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.authentication_service.models import User, UserRole
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token
 from app.main import app
 from app.notification_service.enums import NotificationType
 from app.notification_service import service
@@ -13,7 +13,6 @@ client = TestClient(app)
 def create_test_user(db, email, role=UserRole.EMPLOYEE, is_active=True):
     user = User(
         email=email,
-        password_hash=hash_password("Password123!"),
         role=role,
         is_active=is_active,
     )

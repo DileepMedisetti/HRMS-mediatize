@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Tags, WalletCards, X } from "lucide-react";
+import { Tags, WalletCards, X, RotateCcw } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
-import { getAllLeaves, approveLeave, rejectLeave } from "../services/leaveApi";
-import { showSuccess, showError } from "../../shared/utils/toast";
+import { getAllLeaves, approveLeave, rejectLeave, revokeLeave } from "../services/leaveApi";
+import { showSuccess, showError, showWarning } from "../../shared/utils/toast";
 
 function getStatusBadge(status) {
   switch (status) {
@@ -14,6 +14,8 @@ function getStatusBadge(status) {
       return { label: "REJECTED", bg: "rgba(239, 68, 68, 0.2)", color: "#f87171" };
     case "CANCELLED":
       return { label: "CANCELLED", bg: "rgba(148, 163, 184, 0.2)", color: "#94a3b8" };
+    case "REVOKED":
+      return { label: "REVOKED", bg: "rgba(100, 116, 139, 0.2)", color: "#cbd5e1" };
     default:
       return { label: "PENDING", bg: "rgba(234, 179, 8, 0.2)", color: "#facc15" };
   }
@@ -26,8 +28,9 @@ function HRLeave() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [selectedLeave, setSelectedLeave] = useState(null);
-  const [actionType, setActionType] = useState(""); // "APPROVE" or "REJECT"
+  const [actionType, setActionType] = useState(""); // "APPROVE", "REJECT", "REVOKE"
   const [hrRemarks, setHrRemarks] = useState("");
+  const [revocationReason, setRevocationReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const fetchLeaves = useCallback(async () => {
@@ -55,6 +58,11 @@ function HRLeave() {
     e.preventDefault();
     if (!selectedLeave) return;
 
+    if (actionType === "REVOKE" && !revocationReason.trim()) {
+      showWarning("Revocation reason is required.");
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -64,9 +72,13 @@ function HRLeave() {
       } else if (actionType === "REJECT") {
         await rejectLeave(selectedLeave.id, { hr_remarks: hrRemarks });
         showSuccess("Leave request rejected successfully.");
+      } else if (actionType === "REVOKE") {
+        await revokeLeave(selectedLeave.id, { revocation_reason: revocationReason.trim() });
+        showSuccess("Leave decision revoked successfully.");
       }
       setSelectedLeave(null);
       setHrRemarks("");
+      setRevocationReason("");
       fetchLeaves();
     } catch (err) {
       console.error("Failed to update leave request", err);
@@ -114,6 +126,7 @@ function HRLeave() {
             <option value="APPROVED">APPROVED</option>
             <option value="REJECTED">REJECTED</option>
             <option value="CANCELLED">CANCELLED</option>
+            <option value="REVOKED">REVOKED</option>
           </select>
         </div>
 
@@ -188,6 +201,31 @@ function HRLeave() {
                             </button>
                           </div>
                         )}
+                        {(req.status === "APPROVED" || req.status === "REJECTED") && (
+                          <button
+                            style={{
+                              ...styles.revokeBtn,
+                              backgroundColor: "rgba(245, 158, 11, 0.15)",
+                              color: "#f59e0b",
+                              border: "1px solid rgba(245, 158, 11, 0.3)",
+                              padding: "0.35rem 0.75rem",
+                              borderRadius: "var(--radius-md)",
+                              fontSize: "0.8rem",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "0.25rem",
+                            }}
+                            onClick={() => {
+                              setSelectedLeave(req);
+                              setActionType("REVOKE");
+                              setRevocationReason("");
+                            }}
+                          >
+                            <RotateCcw size={14} /> Revoke
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -197,13 +235,17 @@ function HRLeave() {
           </div>
         )}
 
-        {/* Review Modal */}
+        {/* Review / Revoke Modal */}
         {selectedLeave && (
           <div style={styles.modalOverlay} onClick={() => setSelectedLeave(null)}>
             <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
               <div style={styles.modalHeader}>
                 <h3 style={styles.modalTitle}>
-                  {actionType === "APPROVE" ? "Approve Leave Request" : "Reject Leave Request"}
+                  {actionType === "APPROVE"
+                    ? "Approve Leave Request"
+                    : actionType === "REJECT"
+                    ? "Reject Leave Request"
+                    : "Revoke Leave Decision"}
                 </h3>
                 <button
                   type="button"
@@ -218,17 +260,33 @@ function HRLeave() {
                 <div style={styles.modalBody}>
                   <p style={{ color: "var(--text-primary)", fontSize: "0.9rem", lineHeight: "1.5", margin: 0 }}>
                     <strong>Employee:</strong> {selectedLeave.employee_name} ({selectedLeave.employee_code})<br />
-                    <strong>Leave:</strong> {selectedLeave.leave_type_name} ({selectedLeave.start_date} to {selectedLeave.end_date})
+                    <strong>Leave:</strong> {selectedLeave.leave_type_name} ({selectedLeave.start_date} to {selectedLeave.end_date})<br />
+                    <strong>Current Status:</strong> {selectedLeave.status}
                   </p>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>HR Remarks (Optional)</label>
-                    <textarea
-                      style={styles.textarea}
-                      value={hrRemarks}
-                      onChange={(e) => setHrRemarks(e.target.value)}
-                      placeholder="Enter remarks for employee..."
-                    />
-                  </div>
+                  {actionType === "REVOKE" ? (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>
+                        Revocation Reason <span style={styles.required}>*</span>
+                      </label>
+                      <textarea
+                        style={styles.textarea}
+                        value={revocationReason}
+                        onChange={(e) => setRevocationReason(e.target.value)}
+                        placeholder="Enter mandatory reason for revoking this decision..."
+                        required
+                      />
+                    </div>
+                  ) : (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>HR Remarks (Optional)</label>
+                      <textarea
+                        style={styles.textarea}
+                        value={hrRemarks}
+                        onChange={(e) => setHrRemarks(e.target.value)}
+                        placeholder="Enter remarks for employee..."
+                      />
+                    </div>
+                  )}
                 </div>
                 <div style={styles.modalFooter}>
                   <div className="hrms-modal-footer-actions">
@@ -239,11 +297,22 @@ function HRLeave() {
                       type="submit"
                       style={{
                         ...styles.primaryBtn,
-                        backgroundColor: actionType === "APPROVE" ? "var(--success-color)" : "var(--danger-color)",
+                        backgroundColor:
+                          actionType === "APPROVE"
+                            ? "var(--success-color)"
+                            : actionType === "REJECT"
+                            ? "var(--danger-color)"
+                            : "#d97706",
                       }}
                       disabled={submitting}
                     >
-                      {submitting ? "Processing..." : actionType === "APPROVE" ? "Confirm Approve" : "Confirm Reject"}
+                      {submitting
+                        ? "Processing..."
+                        : actionType === "APPROVE"
+                        ? "Confirm Approve"
+                        : actionType === "REJECT"
+                        ? "Confirm Reject"
+                        : "Confirm Revoke"}
                     </button>
                   </div>
                 </div>

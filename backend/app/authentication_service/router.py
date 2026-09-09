@@ -1,31 +1,27 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.authentication_service.dependencies import (
-    get_current_hr,
-    get_current_user,
-)
+from app.authentication_service.dependencies import get_current_hr, get_current_user
 from app.authentication_service.models import User
 from app.authentication_service.schemas import (
-    ChangePasswordRequest,
-    ForgotPasswordRequest,
-    LoginRequest,
-    PasswordResetActionResponse,
-    PasswordResetRequestResponse,
+    HRProfileResponse,
+    HRProfileUpdateSchema,
+    OTPRequestResponse,
+    OTPRequestSchema,
+    OTPVerifySchema,
     TokenResponse,
     UserResponse,
 )
 from app.authentication_service.service import (
-    approve_password_reset_request,
-    authenticate_user,
-    change_password,
-    create_password_reset_request,
-    get_password_reset_requests,
-    reject_password_reset_request,
+    delete_hr_profile_photo,
+    get_current_user_profile,
+    get_hr_profile,
+    request_otp,
+    update_hr_profile,
+    upload_hr_profile_photo,
+    verify_otp,
 )
-from app.audit_service.models import AuditAction
-from app.audit_service.service import create_audit_log
+from app.cloudinary_service.service import validate_image_file
 from app.core.database import get_db
 
 
@@ -34,74 +30,74 @@ router = APIRouter(
     tags=["Authentication"],
 )
 
+hr_router = APIRouter(
+    prefix="/hr",
+    tags=["HR Profile"],
+)
+
 
 # ============================================================
-# Login API
+# Request Login OTP
 # ============================================================
 
 @router.post(
-    "/login",
+    "/request-otp",
+    response_model=OTPRequestResponse,
+)
+def handle_request_otp(
+    data: OTPRequestSchema,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> OTPRequestResponse:
+    """
+    Request a 6-digit login OTP.
+
+    The backend identifies the user and their role from
+    the database. The frontend never supplies a role.
+    """
+
+    ip_address = (
+        request.client.host
+        if request.client
+        else None
+    )
+
+    return request_otp(
+        db=db,
+        email=data.email,
+        ip_address=ip_address,
+    )
+
+
+# ============================================================
+# Verify Login OTP
+# ============================================================
+
+@router.post(
+    "/verify-otp",
     response_model=TokenResponse,
 )
-def login(
-    login_data: LoginRequest,
+def handle_verify_otp(
+    data: OTPVerifySchema,
     request: Request,
     db: Session = Depends(get_db),
 ) -> TokenResponse:
     """
-    Authenticate a user using email, role, and password.
-
-    Audit events are recorded for both successful and
-    failed login attempts.
+    Verify the 6-digit login OTP and issue the existing JWT.
     """
 
-    ip_address = request.client.host if request.client else None
-
-    # Find the user by email for audit purposes.
-    # The password and other sensitive authentication
-    # information are never stored in the audit log.
-    statement = select(User).where(
-        User.email == login_data.email
+    ip_address = (
+        request.client.host
+        if request.client
+        else None
     )
 
-    attempted_user = db.scalar(statement)
-
-    try:
-        access_token = authenticate_user(
-            db=db,
-            email=login_data.email,
-            role=login_data.role,
-            password=login_data.password,
-        )
-
-    except HTTPException:
-        # Record failed authentication attempt.
-        create_audit_log(
-            db=db,
-            action=AuditAction.LOGIN_FAILURE,
-            user_id=(
-                attempted_user.id
-                if attempted_user
-                else None
-            ),
-            ip_address=ip_address,
-        )
-
-        # Persist the failed-login audit record.
-        db.commit()
-
-        raise
-
-    # Record successful login.
-    create_audit_log(
+    access_token = verify_otp(
         db=db,
-        action=AuditAction.LOGIN_SUCCESS,
-        user_id=attempted_user.id,
+        email=data.email,
+        otp=data.otp,
         ip_address=ip_address,
     )
-
-    # Persist the successful-login audit record.
-    db.commit()
 
     return TokenResponse(
         access_token=access_token,
@@ -109,7 +105,7 @@ def login(
 
 
 # ============================================================
-# Current User API
+# Current User
 # ============================================================
 
 @router.get(
@@ -118,164 +114,143 @@ def login(
 )
 def get_me(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> UserResponse:
     """
-    Return the currently authenticated user's information.
+    Return the currently authenticated user.
     """
 
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        employee_id=current_user.employee_id,
-        role=current_user.role.value,
-        is_active=current_user.is_active,
-        must_change_password=current_user.must_change_password,
-    )
+    return get_current_user_profile(db=db, user=current_user)
 
 
 # ============================================================
-# Change Password API
-# ============================================================
-
-@router.post("/change-password")
-def change_user_password(
-    password_data: ChangePasswordRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """
-    Change the authenticated user's password.
-    """
-
-    change_password(
-        db=db,
-        user=current_user,
-        current_password=password_data.current_password,
-        new_password=password_data.new_password,
-        confirm_password=password_data.confirm_password,
-    )
-
-    return {
-        "message": "Password changed successfully",
-    }
-
-
-# ============================================================
-# Forgot Password API
-# ============================================================
-
-@router.post(
-    "/forgot-password",
-    response_model=PasswordResetActionResponse,
-)
-def forgot_password(
-    request: ForgotPasswordRequest,
-    db: Session = Depends(get_db),
-) -> PasswordResetActionResponse:
-    """
-    Create a password reset request.
-
-    A generic response is returned regardless of whether
-    the email exists, preventing user/email enumeration.
-    """
-
-    create_password_reset_request(
-        db=db,
-        email=request.email,
-    )
-
-    return PasswordResetActionResponse(
-        message=(
-            "If the account exists, a password reset request "
-            "has been submitted."
-        ),
-    )
-
-
-# ============================================================
-# HR - Get Password Reset Requests
+# HR Profile Endpoints
 # ============================================================
 
 @router.get(
-    "/password-reset-requests",
-    response_model=list[PasswordResetRequestResponse],
+    "/hr/profile",
+    response_model=HRProfileResponse,
 )
-def get_reset_requests(
+@hr_router.get(
+    "/profile",
+    response_model=HRProfileResponse,
+)
+def handle_get_hr_profile(
     current_hr: User = Depends(get_current_hr),
     db: Session = Depends(get_db),
-) -> list[PasswordResetRequestResponse]:
+) -> HRProfileResponse:
     """
-    Return password reset requests for HR users only.
+    Get authenticated HR profile details.
     """
-
-    results = get_password_reset_requests(db)
-
-    return [
-        PasswordResetRequestResponse(
-            id=reset_request.id,
-            user_id=user.id,
-            email=user.email,
-            status=reset_request.status.value,
-            requested_at=reset_request.requested_at,
-            reviewed_at=reset_request.reviewed_at,
-        )
-        for reset_request, user in results
-    ]
+    return get_hr_profile(
+        db=db,
+        hr_user=current_hr,
+    )
 
 
-# ============================================================
-# HR - Approve Password Reset
-# ============================================================
+@router.put(
+    "/hr/profile",
+    response_model=HRProfileResponse,
+)
+@router.patch(
+    "/hr/profile",
+    response_model=HRProfileResponse,
+)
+@hr_router.put(
+    "/profile",
+    response_model=HRProfileResponse,
+)
+@hr_router.patch(
+    "/profile",
+    response_model=HRProfileResponse,
+)
+def handle_update_hr_profile(
+    data: HRProfileUpdateSchema,
+    request: Request,
+    current_hr: User = Depends(get_current_hr),
+    db: Session = Depends(get_db),
+) -> HRProfileResponse:
+    """
+    Update HR Profile (First Name, Last Name, and Optional Address).
+    Whitelisted fields only. Email and Role are read-only and cannot be updated.
+    """
+    ip_address = request.client.host if request.client else None
+
+    return update_hr_profile(
+        db=db,
+        hr_user=current_hr,
+        data=data,
+        ip_address=ip_address,
+    )
+
 
 @router.post(
-    "/password-reset-requests/{request_id}/approve",
-    response_model=PasswordResetActionResponse,
+    "/hr/profile/photo",
+    response_model=HRProfileResponse,
 )
-def approve_reset_request(
-    request_id: int,
-    current_hr: User = Depends(get_current_hr),
-    db: Session = Depends(get_db),
-) -> PasswordResetActionResponse:
-    """
-    Approve a pending password reset request.
-
-    Only HR users can approve password reset requests.
-    """
-
-    approve_password_reset_request(
-        db=db,
-        request_id=request_id,
-    )
-
-    return PasswordResetActionResponse(
-        message="Password reset request approved successfully",
-    )
-
-
-# ============================================================
-# HR - Reject Password Reset
-# ============================================================
-
 @router.post(
-    "/password-reset-requests/{request_id}/reject",
-    response_model=PasswordResetActionResponse,
+    "/hr/profile/profile-photo",
+    response_model=HRProfileResponse,
 )
-def reject_reset_request(
-    request_id: int,
+@hr_router.post(
+    "/profile/photo",
+    response_model=HRProfileResponse,
+)
+@hr_router.post(
+    "/profile/profile-photo",
+    response_model=HRProfileResponse,
+)
+async def handle_upload_hr_profile_photo(
+    request: Request,
+    file: UploadFile = File(...),
     current_hr: User = Depends(get_current_hr),
     db: Session = Depends(get_db),
-) -> PasswordResetActionResponse:
+) -> HRProfileResponse:
     """
-    Reject a pending password reset request.
-
-    Only HR users can reject password reset requests.
+    Upload/Replace HR profile photo.
+    Validates file format/size and stores Cloudinary secure URL in PostgreSQL.
     """
+    ip_address = request.client.host if request.client else None
 
-    reject_password_reset_request(
+    file_bytes = await file.read()
+    validate_image_file(file=file, file_bytes=file_bytes)
+
+    return upload_hr_profile_photo(
         db=db,
-        request_id=request_id,
+        hr_user=current_hr,
+        file_bytes=file_bytes,
+        ip_address=ip_address,
     )
 
-    return PasswordResetActionResponse(
-        message="Password reset request rejected successfully",
+
+@router.delete(
+    "/hr/profile/photo",
+    response_model=HRProfileResponse,
+)
+@router.delete(
+    "/hr/profile/profile-photo",
+    response_model=HRProfileResponse,
+)
+@hr_router.delete(
+    "/profile/photo",
+    response_model=HRProfileResponse,
+)
+@hr_router.delete(
+    "/profile/profile-photo",
+    response_model=HRProfileResponse,
+)
+def handle_delete_hr_profile_photo(
+    request: Request,
+    current_hr: User = Depends(get_current_hr),
+    db: Session = Depends(get_db),
+) -> HRProfileResponse:
+    """
+    Remove HR profile photo asset from Cloudinary and clear PostgreSQL columns.
+    """
+    ip_address = request.client.host if request.client else None
+
+    return delete_hr_profile_photo(
+        db=db,
+        hr_user=current_hr,
+        ip_address=ip_address,
     )

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import delete, select
 
 from app.authentication_service.models import User, UserRole
-from app.core.security import create_access_token, hash_password
+from app.core.security import create_access_token
 from app.employee_service.models import Employee, EmploymentStatus
 from app.project_service.models import (
     AssignmentStatus,
@@ -29,7 +29,6 @@ def test_setup_data(db_session):
     if not hr_user:
         hr_user = User(
             email="hr.workreport@example.com",
-            password_hash=hash_password("Password123!"),
             role=UserRole.HR,
             is_active=True,
         )
@@ -40,7 +39,6 @@ def test_setup_data(db_session):
     if not emp_user1:
         emp_user1 = User(
             email="emp1.workreport@example.com",
-            password_hash=hash_password("Password123!"),
             role=UserRole.EMPLOYEE,
             is_active=True,
         )
@@ -51,7 +49,6 @@ def test_setup_data(db_session):
     if not emp_user2:
         emp_user2 = User(
             email="emp2.workreport@example.com",
-            password_hash=hash_password("Password123!"),
             role=UserRole.EMPLOYEE,
             is_active=True,
         )

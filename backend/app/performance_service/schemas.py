@@ -196,3 +196,44 @@ class HRPerformanceDashboardResponse(BaseModel):
     average_rating: Optional[float] = None
     goals_completed: int
     goals_in_progress: int
+
+
+class EmployeeRatingMetric(BaseModel):
+    employee_id: int
+    employee_name: str
+    employee_code: Optional[str] = None
+    average_rating: float
+    completed_reviews_count: int
+
+
+class PerformanceTrendMetric(BaseModel):
+    period: str
+    average_rating: float
+    review_count: int
+
+
+class GoalProgressMetric(BaseModel):
+    status: str
+    label: str
+    count: int
+
+
+class CategoryRatingMetric(BaseModel):
+    category: str
+    average_rating: float
+    total_ratings: int
+
+
+class ReviewStatusMetric(BaseModel):
+    status: str
+    label: str
+    count: int
+
+
+class HRPerformanceAnalyticsResponse(BaseModel):
+    ratings_by_employee: List[EmployeeRatingMetric]
+    performance_trends: List[PerformanceTrendMetric]
+    goal_status_distribution: List[GoalProgressMetric]
+    category_ratings: List[CategoryRatingMetric]
+    review_status_distribution: List[ReviewStatusMetric]
+

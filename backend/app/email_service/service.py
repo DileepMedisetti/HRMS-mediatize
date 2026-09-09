@@ -83,61 +83,105 @@ def send_email(
         smtp.send_message(message)
 
 
-def send_password_reset_email(
+def send_otp_email(
     recipient_email: str,
-    temporary_password: str,
-    login_url: str,
+    otp_code: str,
+    employee_name: str,
+    expire_minutes: int = 10,
 ) -> None:
     """
-    Send a professional HTML password-reset email
-    containing the temporary password.
+    Send a 6-digit login verification code email to a user.
     """
 
-    # Load HTML template
-    template = load_template("password_reset.html")
+    template = load_template("otp_email.html")
 
-    # Replace template placeholders
-    html_content = (
-        template
-        .replace(
-            "{{ employee_email }}",
-            recipient_email,
-        )
-        .replace(
-            "{{ temporary_password }}",
-            temporary_password,
-        )
-        .replace(
-            "{{ login_url }}",
-            login_url,
-        )
+    clean_name = (
+        employee_name.strip()
+        if employee_name and employee_name.strip()
+        else "User"
     )
 
-    # Plain-text fallback
+    html_content = (
+        template
+        .replace("{{ employee_name }}", clean_name)
+        .replace("{{ otp_code }}", otp_code)
+        .replace("{{ expire_minutes }}", str(expire_minutes))
+    )
+
     plain_text_content = f"""
-Hello,
+Hello {clean_name},
 
-Your Mediatize Tech HRMS password reset request has been approved by HR.
+Your Mediatize Tech HRMS login verification code is:
 
-Account:
-{recipient_email}
+{otp_code}
 
-Temporary Password:
-{temporary_password}
+This code is valid for {expire_minutes} minutes.
 
-Please log in to HRMS using the temporary password and change your password immediately.
+For your security, do not share this code with anyone.
 
-If you did not request a password reset, please contact your HR administrator.
+If you did not request this code, please ignore this email.
 
 Regards,
 Mediatize Tech HRMS
 Mediatize Tech Pvt. Ltd.
 """.strip()
 
-    # Send email
     send_email(
         recipient_email=recipient_email,
-        subject="Your Mediatize HRMS Password Reset",
+        subject="[HRMS] Your Login Verification Code",
+        html_content=html_content,
+        plain_text_content=plain_text_content,
+    )
+
+
+def send_email_change_otp_email(
+    recipient_email: str,
+    otp_code: str,
+    employee_name: str,
+    expire_minutes: int = 10,
+) -> None:
+    """
+    Send a 6-digit email change verification code email to a user's new email.
+    """
+
+    template = load_template("email_change_otp.html")
+
+    clean_name = (
+        employee_name.strip()
+        if employee_name and employee_name.strip()
+        else "User"
+    )
+
+    html_content = (
+        template
+        .replace("{{ employee_name }}", clean_name)
+        .replace("{{ otp_code }}", otp_code)
+        .replace("{{ expire_minutes }}", str(expire_minutes))
+    )
+
+    plain_text_content = f"""
+Hello {clean_name},
+
+A request was made to change the email address associated with your HRMS account.
+Your 6-digit email change verification code is:
+
+{otp_code}
+
+This code is valid for {expire_minutes} minutes.
+
+For your security, do not share this code with anyone.
+The email address will only change after successful OTP verification.
+
+If you did not request this change, please contact HR or system administration.
+
+Regards,
+Mediatize Tech HRMS
+Mediatize Tech Pvt. Ltd.
+""".strip()
+
+    send_email(
+        recipient_email=recipient_email,
+        subject="[HRMS] Verify Your New Email Address",
         html_content=html_content,
         plain_text_content=plain_text_content,
     )
@@ -146,25 +190,39 @@ Mediatize Tech Pvt. Ltd.
 def send_employee_welcome_email(
     recipient_email: str,
     employee_name: str,
-    temporary_password: str,
     login_url: str,
     employee_code: str = "",
 ) -> None:
     """
     Send a professional HTML welcome email to a newly created employee.
+
+    HRMS authentication is passwordless.
+    Employees log in using their registered email address
+    and a one-time verification code sent by email.
     """
 
     template = load_template("employee_welcome.html")
 
-    clean_name = employee_name.strip() if employee_name and employee_name.strip() else "Employee"
+    clean_name = (
+        employee_name.strip()
+        if employee_name and employee_name.strip()
+        else "Employee"
+    )
+
+    clean_url = (
+        login_url.strip()
+        if login_url and login_url.strip()
+        else settings.FRONTEND_URL
+    )
+
+    clean_employee_code = employee_code or "N/A"
 
     html_content = (
         template
         .replace("{{ employee_name }}", clean_name)
         .replace("{{ employee_email }}", recipient_email)
-        .replace("{{ temporary_password }}", temporary_password)
-        .replace("{{ login_url }}", login_url)
-        .replace("{{ employee_code }}", employee_code or "N/A")
+        .replace("{{ login_url }}", clean_url)
+        .replace("{{ employee_code }}", clean_employee_code)
     )
 
     plain_text_content = f"""
@@ -172,25 +230,32 @@ Welcome to Mediatize Tech!
 
 Hello {clean_name},
 
-Your employee account has been successfully created.
+Your employee account has been successfully created
+in the Mediatize Tech HRMS.
 
-You can use the credentials below to sign in to the Mediatize Tech HRMS portal.
-
-LOGIN CREDENTIALS
+ACCOUNT DETAILS
 
 Employee Code:
-{employee_code or "N/A"}
+{clean_employee_code}
 
-Email:
+Registered Email:
 {recipient_email}
 
-Temporary Password:
-{temporary_password}
+HOW TO SIGN IN
+
+1. Open the Mediatize Tech HRMS portal.
+2. Enter your registered email address.
+3. Request a login verification code.
+4. Enter the 6-digit OTP sent to your email.
+5. You will be securely signed in to HRMS.
 
 Login to HRMS:
-{login_url}
+{clean_url}
 
-For security reasons, please change your temporary password after signing in for the first time.
+Important:
+Your HRMS account does not use a password.
+A new verification code is sent to your registered email
+whenever you sign in.
 
 If you did not expect this account, please contact HR.
 
@@ -219,13 +284,29 @@ def send_project_assignment_email(
     login_url: Optional[str] = None,
 ) -> None:
     """
-    Send a professional HTML project assignment email to an assigned employee.
+    Send a professional HTML project assignment email
+    to an assigned employee.
     """
+
     template = load_template("project_assignment.html")
 
-    clean_name = employee_name.strip() if employee_name and employee_name.strip() else "Team Member"
-    clean_desc = project_description.strip() if project_description and project_description.strip() else "No description provided."
-    clean_url = login_url.strip() if login_url and login_url.strip() else settings.FRONTEND_URL
+    clean_name = (
+        employee_name.strip()
+        if employee_name and employee_name.strip()
+        else "Team Member"
+    )
+
+    clean_desc = (
+        project_description.strip()
+        if project_description and project_description.strip()
+        else "No description provided."
+    )
+
+    clean_url = (
+        login_url.strip()
+        if login_url and login_url.strip()
+        else settings.FRONTEND_URL
+    )
 
     html_content = (
         template
@@ -235,7 +316,10 @@ def send_project_assignment_email(
         .replace("{{ project_description }}", clean_desc)
         .replace("{{ start_date }}", start_date or "N/A")
         .replace("{{ assigned_date }}", assigned_date or "N/A")
-        .replace("{{ assigned_by_name }}", assigned_by_name or "HR Department")
+        .replace(
+            "{{ assigned_by_name }}",
+            assigned_by_name or "HR Department",
+        )
         .replace("{{ login_url }}", clean_url)
     )
 
@@ -245,11 +329,21 @@ Hello {clean_name},
 You have been assigned to a project on Mediatize Tech HRMS.
 
 PROJECT ASSIGNMENT DETAILS:
-Project Name: {project_name or "N/A"}
-Project Role: {project_role or "N/A"}
-Assignment Date: {assigned_date or "N/A"}
-Project Start Date: {start_date or "N/A"}
-Assigned By: {assigned_by_name or "HR Department"}
+
+Project Name:
+{project_name or "N/A"}
+
+Project Role:
+{project_role or "N/A"}
+
+Assignment Date:
+{assigned_date or "N/A"}
+
+Project Start Date:
+{start_date or "N/A"}
+
+Assigned By:
+{assigned_by_name or "HR Department"}
 
 Description:
 {clean_desc}
@@ -281,45 +375,91 @@ def send_announcement_email(
     login_url: Optional[str] = None,
 ) -> None:
     """
-    Send a professional HTML announcement email for Company or Project announcements.
+    Send a professional HTML announcement email
+    for Company or Project announcements.
     """
+
     template = load_template("announcement.html")
 
-    clean_name = employee_name.strip() if employee_name and employee_name.strip() else "Team Member"
-    clean_url = login_url.strip() if login_url and login_url.strip() else settings.FRONTEND_URL
+    clean_name = (
+        employee_name.strip()
+        if employee_name and employee_name.strip()
+        else "Team Member"
+    )
+
+    clean_url = (
+        login_url.strip()
+        if login_url and login_url.strip()
+        else settings.FRONTEND_URL
+    )
 
     is_project = announcement_scope.upper() == "PROJECT"
-    scope_label = f"Project Announcement • {project_name}" if (is_project and project_name) else "Company Announcement"
-    subject = f"[HRMS] New Project Announcement" if (is_project and project_name) else "[HRMS] New Company Announcement"
+
+    scope_label = (
+        f"Project Announcement • {project_name}"
+        if (is_project and project_name)
+        else "Company Announcement"
+    )
+
+    subject = (
+        "[HRMS] New Project Announcement"
+        if (is_project and project_name)
+        else "[HRMS] New Company Announcement"
+    )
 
     project_row = ""
+
     if is_project and project_name:
         project_row = (
-            '<tr>'
-            '<td style="font-size: 13px; color: #6b7280; width: 110px; font-weight: 600; padding-top: 6px;">Project:</td>'
-            f'<td style="font-size: 13px; color: #111827; font-weight: 600; padding-top: 6px;">{project_name}</td>'
-            '</tr>'
+            "<tr>"
+            '<td style="font-size: 13px; color: #6b7280; '
+            'width: 110px; font-weight: 600; padding-top: 6px;">'
+            "Project:"
+            "</td>"
+            f'<td style="font-size: 13px; color: #111827; '
+            f'font-weight: 600; padding-top: 6px;">'
+            f"{project_name}"
+            "</td>"
+            "</tr>"
         )
 
     html_content = (
         template
         .replace("{{ announcement_scope_label }}", scope_label)
-        .replace("{{ announcement_title }}", announcement_title or "HRMS Announcement")
+        .replace(
+            "{{ announcement_title }}",
+            announcement_title or "HRMS Announcement",
+        )
         .replace("{{ employee_name }}", clean_name)
-        .replace("{{ published_date }}", published_date or "N/A")
+        .replace(
+            "{{ published_date }}",
+            published_date or "N/A",
+        )
         .replace("{{ project_info_row }}", project_row)
-        .replace("{{ announcement_content }}", announcement_content or "")
+        .replace(
+            "{{ announcement_content }}",
+            announcement_content or "",
+        )
         .replace("{{ login_url }}", clean_url)
     )
 
-    project_text = f"Project: {project_name}\n" if (is_project and project_name) else ""
+    project_text = (
+        f"Project: {project_name}\n"
+        if (is_project and project_name)
+        else ""
+    )
 
     plain_text_content = f"""
 Hello {clean_name},
 
 [{scope_label.upper()}]
-Title: {announcement_title}
-Published Date: {published_date or "N/A"}
+
+Title:
+{announcement_title}
+
+Published Date:
+{published_date or "N/A"}
+
 {project_text}
 Content:
 {announcement_content}
@@ -350,33 +490,65 @@ def send_performance_feedback_email(
     login_url: Optional[str] = None,
 ) -> None:
     """
-    Send a professional HTML email when performance feedback is finalized.
+    Send a professional HTML email when performance feedback
+    is finalized.
     """
+
     template = load_template("performance_feedback.html")
 
-    clean_name = employee_name.strip() if employee_name and employee_name.strip() else "Team Member"
-    clean_feedback = overall_feedback.strip() if overall_feedback and overall_feedback.strip() else "No additional comments provided."
-    clean_url = login_url.strip() if login_url and login_url.strip() else settings.FRONTEND_URL
+    clean_name = (
+        employee_name.strip()
+        if employee_name and employee_name.strip()
+        else "Team Member"
+    )
+
+    clean_feedback = (
+        overall_feedback.strip()
+        if overall_feedback and overall_feedback.strip()
+        else "No additional comments provided."
+    )
+
+    clean_url = (
+        login_url.strip()
+        if login_url and login_url.strip()
+        else settings.FRONTEND_URL
+    )
 
     html_content = (
         template
         .replace("{{ employee_name }}", clean_name)
         .replace("{{ review_period }}", review_period or "N/A")
-        .replace("{{ overall_rating }}", f"{overall_rating:.1f}")
-        .replace("{{ review_date }}", review_date or "N/A")
-        .replace("{{ overall_feedback }}", clean_feedback)
+        .replace(
+            "{{ overall_rating }}",
+            f"{overall_rating:.1f}",
+        )
+        .replace(
+            "{{ review_date }}",
+            review_date or "N/A",
+        )
+        .replace(
+            "{{ overall_feedback }}",
+            clean_feedback,
+        )
         .replace("{{ login_url }}", clean_url)
     )
 
     plain_text_content = f"""
 Hello {clean_name},
 
-Your performance evaluation has been finalized on Mediatize Tech HRMS.
+Your performance evaluation has been finalized
+on Mediatize Tech HRMS.
 
 PERFORMANCE EVALUATION DETAILS:
-Review Period: {review_period or "N/A"}
-Overall Rating: {overall_rating:.1f} / 5.0
-Review Date: {review_date or "N/A"}
+
+Review Period:
+{review_period or "N/A"}
+
+Overall Rating:
+{overall_rating:.1f} / 5.0
+
+Review Date:
+{review_date or "N/A"}
 
 HR Feedback:
 {clean_feedback}
@@ -408,22 +580,54 @@ def send_leave_request_email(
     login_url: Optional[str] = None,
 ) -> None:
     """
-    Send a professional HTML email to HR when a leave request is submitted.
+    Send a professional HTML email to HR
+    when a leave request is submitted.
     """
+
     template = load_template("leave_request.html")
 
-    clean_reason = reason.strip() if reason and reason.strip() else "No reason provided."
-    clean_url = login_url.strip() if login_url and login_url.strip() else settings.FRONTEND_URL
+    clean_reason = (
+        reason.strip()
+        if reason and reason.strip()
+        else "No reason provided."
+    )
+
+    clean_url = (
+        login_url.strip()
+        if login_url and login_url.strip()
+        else settings.FRONTEND_URL
+    )
 
     html_content = (
         template
-        .replace("{{ employee_name }}", employee_name or "Employee")
-        .replace("{{ leave_type }}", leave_type or "N/A")
-        .replace("{{ start_date }}", start_date or "N/A")
-        .replace("{{ end_date }}", end_date or "N/A")
-        .replace("{{ duration }}", str(duration))
-        .replace("{{ reason }}", clean_reason)
-        .replace("{{ login_url }}", clean_url)
+        .replace(
+            "{{ employee_name }}",
+            employee_name or "Employee",
+        )
+        .replace(
+            "{{ leave_type }}",
+            leave_type or "N/A",
+        )
+        .replace(
+            "{{ start_date }}",
+            start_date or "N/A",
+        )
+        .replace(
+            "{{ end_date }}",
+            end_date or "N/A",
+        )
+        .replace(
+            "{{ duration }}",
+            str(duration),
+        )
+        .replace(
+            "{{ reason }}",
+            clean_reason,
+        )
+        .replace(
+            "{{ login_url }}",
+            clean_url,
+        )
     )
 
     plain_text_content = f"""
@@ -432,10 +636,18 @@ Hello HR Team,
 A new leave request has been submitted by {employee_name}.
 
 LEAVE REQUEST DETAILS:
-Employee: {employee_name}
-Leave Type: {leave_type}
-Dates: {start_date} to {end_date} ({duration} day(s))
-Reason: {clean_reason}
+
+Employee:
+{employee_name}
+
+Leave Type:
+{leave_type}
+
+Dates:
+{start_date} to {end_date} ({duration} day(s))
+
+Reason:
+{clean_reason}
 
 Review in HRMS:
 {clean_url}
@@ -464,13 +676,29 @@ def send_leave_approved_email(
     login_url: Optional[str] = None,
 ) -> None:
     """
-    Send a professional HTML email to employee when leave request is approved.
+    Send a professional HTML email to an employee
+    when a leave request is approved.
     """
+
     template = load_template("leave_approved.html")
 
-    clean_name = employee_name.strip() if employee_name and employee_name.strip() else "Team Member"
-    clean_remarks = hr_remarks.strip() if hr_remarks and hr_remarks.strip() else "Approved"
-    clean_url = login_url.strip() if login_url and login_url.strip() else settings.FRONTEND_URL
+    clean_name = (
+        employee_name.strip()
+        if employee_name and employee_name.strip()
+        else "Team Member"
+    )
+
+    clean_remarks = (
+        hr_remarks.strip()
+        if hr_remarks and hr_remarks.strip()
+        else "Approved"
+    )
+
+    clean_url = (
+        login_url.strip()
+        if login_url and login_url.strip()
+        else settings.FRONTEND_URL
+    )
 
     html_content = (
         template
@@ -479,8 +707,14 @@ def send_leave_approved_email(
         .replace("{{ start_date }}", start_date or "N/A")
         .replace("{{ end_date }}", end_date or "N/A")
         .replace("{{ duration }}", str(duration))
-        .replace("{{ hr_remarks }}", clean_remarks)
-        .replace("{{ login_url }}", clean_url)
+        .replace(
+            "{{ hr_remarks }}",
+            clean_remarks,
+        )
+        .replace(
+            "{{ login_url }}",
+            clean_url,
+        )
     )
 
     plain_text_content = f"""
@@ -489,9 +723,15 @@ Hello {clean_name},
 Your leave request has been APPROVED.
 
 APPROVED LEAVE DETAILS:
-Leave Type: {leave_type}
-Dates: {start_date} to {end_date} ({duration} day(s))
-HR Remarks: {clean_remarks}
+
+Leave Type:
+{leave_type}
+
+Dates:
+{start_date} to {end_date} ({duration} day(s))
+
+HR Remarks:
+{clean_remarks}
 
 View details in HRMS:
 {clean_url}
@@ -519,13 +759,29 @@ def send_leave_rejected_email(
     login_url: Optional[str] = None,
 ) -> None:
     """
-    Send a professional HTML email to employee when leave request is rejected.
+    Send a professional HTML email to an employee
+    when a leave request is rejected.
     """
+
     template = load_template("leave_rejected.html")
 
-    clean_name = employee_name.strip() if employee_name and employee_name.strip() else "Team Member"
-    clean_remarks = hr_remarks.strip() if hr_remarks and hr_remarks.strip() else "No remarks provided."
-    clean_url = login_url.strip() if login_url and login_url.strip() else settings.FRONTEND_URL
+    clean_name = (
+        employee_name.strip()
+        if employee_name and employee_name.strip()
+        else "Team Member"
+    )
+
+    clean_remarks = (
+        hr_remarks.strip()
+        if hr_remarks and hr_remarks.strip()
+        else "No remarks provided."
+    )
+
+    clean_url = (
+        login_url.strip()
+        if login_url and login_url.strip()
+        else settings.FRONTEND_URL
+    )
 
     html_content = (
         template
@@ -533,8 +789,14 @@ def send_leave_rejected_email(
         .replace("{{ leave_type }}", leave_type or "N/A")
         .replace("{{ start_date }}", start_date or "N/A")
         .replace("{{ end_date }}", end_date or "N/A")
-        .replace("{{ hr_remarks }}", clean_remarks)
-        .replace("{{ login_url }}", clean_url)
+        .replace(
+            "{{ hr_remarks }}",
+            clean_remarks,
+        )
+        .replace(
+            "{{ login_url }}",
+            clean_url,
+        )
     )
 
     plain_text_content = f"""
@@ -543,9 +805,15 @@ Hello {clean_name},
 Your leave request update: REJECTED.
 
 LEAVE REQUEST DETAILS:
-Leave Type: {leave_type}
-Dates: {start_date} to {end_date}
-HR Remarks: {clean_remarks}
+
+Leave Type:
+{leave_type}
+
+Dates:
+{start_date} to {end_date}
+
+HR Remarks:
+{clean_remarks}
 
 View details in HRMS:
 {clean_url}
@@ -561,5 +829,3 @@ Mediatize Tech Pvt. Ltd.
         html_content=html_content,
         plain_text_content=plain_text_content,
     )
-
-

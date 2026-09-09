@@ -36,6 +36,7 @@ export default function MobileMenu({ isOpen, onClose }) {
     role === "HR"
       ? [
           { label: "Dashboard", path: "/hr/dashboard", icon: LayoutDashboard },
+          { label: "HR Profile", path: "/hr/profile", icon: UserRound },
           { label: "Employees", path: "/hr/employees", icon: Users },
           { label: "Projects", path: "/hr/projects", icon: FolderGit2 },
           { label: "Project Roles", path: "/hr/project-roles", icon: FolderKanban },
@@ -44,7 +45,6 @@ export default function MobileMenu({ isOpen, onClose }) {
           { label: "Leave Requests", path: "/hr/leaves", icon: CalendarDays },
           { label: "Leave Types", path: "/hr/leave-types", icon: Tags },
           { label: "Leave Balances", path: "/hr/leave-balances", icon: WalletCards },
-          { label: "Password Resets", path: "/hr/password-reset-requests", icon: KeyRound },
           { label: "Audit Logs", path: "/hr/audit-logs", icon: ClipboardList },
           { label: "Notifications", path: "/notifications", icon: Bell },
         ]

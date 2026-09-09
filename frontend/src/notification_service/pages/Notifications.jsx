@@ -36,8 +36,6 @@ function getNotificationTypeBadge(type) {
     case "LEAVE_REJECTED":
     case "LEAVE_CANCELLED":
       return { label: "Leave", bg: "rgba(59, 130, 246, 0.2)", color: "#60a5fa" };
-    case "PASSWORD_RESET_REQUEST":
-      return { label: "Password Reset", bg: "rgba(234, 179, 8, 0.2)", color: "#facc15" };
     case "HOLIDAY_ANNOUNCEMENT":
       return { label: "Holiday", bg: "rgba(234, 179, 8, 0.2)", color: "#facc15" };
     case "PERFORMANCE_UPDATE":
@@ -217,30 +215,6 @@ function Notifications() {
                   <p style={styles.itemMessage}>{item.message}</p>
 
                   <div style={styles.cardFooter}>
-                    {(item.notification_type === "PASSWORD_RESET_REQUEST" || item.reference_type === "PASSWORD_RESET") && (
-                      <button
-                        style={{
-                          backgroundColor: "var(--primary-light, rgba(99, 102, 241, 0.1))",
-                          color: "var(--primary-color, #4f46e5)",
-                          border: "1px solid var(--primary-border, rgba(99, 102, 241, 0.3))",
-                          padding: "0.35rem 0.85rem",
-                          borderRadius: "var(--radius-md)",
-                          fontSize: "0.8rem",
-                          fontWeight: "600",
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.35rem",
-                          marginRight: "auto",
-                        }}
-                        onClick={async () => {
-                          if (!item.is_read) await handleMarkRead(item.id);
-                          navigate("/hr/password-reset-requests");
-                        }}
-                      >
-                        <ExternalLink size={14} /> View Password Reset Requests
-                      </button>
-                    )}
                     {!item.is_read ? (
                       <button
                         style={styles.readBtn}

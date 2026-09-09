@@ -1,7 +1,6 @@
 from datetime import date
 import pytest
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
 from app.employee_service.models import Employee, EmploymentStatus
 
 
@@ -23,7 +22,6 @@ def test_employee_model_instantiation():
 def test_employee_db_persistence(db_session):
     user = User(
         email="employee_test_model@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )

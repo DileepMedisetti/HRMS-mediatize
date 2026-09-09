@@ -2,7 +2,7 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 import logging
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import func, select
@@ -23,9 +23,11 @@ from app.leave_service.models import LeaveAttachment, LeaveBalance, LeaveRequest
 from app.leave_service.schemas import (
     LeaveBalanceResponse,
     LeaveBalanceUpdate,
+    LeaveCancelRequest,
     LeaveRequestCreate,
     LeaveRequestResponse,
     LeaveRequestReview,
+    LeaveRevokeRequest,
     LeaveTypeCreate,
     LeaveTypeResponse,
     LeaveTypeUpdate,
@@ -557,11 +559,30 @@ def apply_leave(
 def cancel_leave(
     db: Session,
     leave_id: int,
-    current_user: User,
+    cancel_in: Optional[Union[LeaveCancelRequest, User, str]] = None,
+    current_user: Optional[User] = None,
     ip_address: Optional[str] = None,
 ) -> LeaveRequestResponse:
+    if isinstance(cancel_in, User):
+        current_user = cancel_in
+        cancel_in = LeaveCancelRequest(cancellation_reason="Cancelled by employee")
+    elif isinstance(cancel_in, str):
+        cancel_in = LeaveCancelRequest(cancellation_reason=cancel_in)
+    elif cancel_in is None:
+        cancel_in = LeaveCancelRequest(cancellation_reason="Cancelled by employee")
+
+    if current_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required.",
+        )
+
     employee = get_employee_record_by_user(db, current_user)
-    leave_req = db.get(LeaveRequest, leave_id)
+
+    # Fetch LeaveRequest with row-level write lock inside transaction
+    leave_req = db.scalar(
+        select(LeaveRequest).where(LeaveRequest.id == leave_id).with_for_update()
+    )
 
     if not leave_req:
         raise HTTPException(
@@ -576,19 +597,29 @@ def cancel_leave(
             detail="You can only cancel your own leave requests.",
         )
 
-    if leave_req.status != LeaveStatus.PENDING:
+    # Re-check status inside the transaction to prevent race conditions & duplicate balance restoration
+    if leave_req.status not in (LeaveStatus.PENDING, LeaveStatus.APPROVED):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Only PENDING leave requests can be cancelled. Current status: {leave_req.status.value}",
+            detail=f"Only PENDING or APPROVED leave requests can be cancelled. Current status: {leave_req.status.value}",
         )
 
-    # Row lock balance & return pending_days
-    balance = get_or_create_leave_balance(db, employee.id, leave_req.leave_type_id, leave_req.start_date.year, lock=True)
-    balance.pending_days = max(Decimal("0.00"), balance.pending_days - leave_req.duration)
+    previous_status = leave_req.status
+
+    # Row lock balance & restore days exactly once based on status
+    balance = get_or_create_leave_balance(
+        db, employee.id, leave_req.leave_type_id, leave_req.start_date.year, lock=True
+    )
+
+    if previous_status == LeaveStatus.PENDING:
+        balance.pending_days = max(Decimal("0.00"), balance.pending_days - leave_req.duration)
+    elif previous_status == LeaveStatus.APPROVED:
+        balance.used_days = max(Decimal("0.00"), balance.used_days - leave_req.duration)
 
     leave_req.status = LeaveStatus.CANCELLED
-    db.commit()
-    db.refresh(leave_req)
+    leave_req.cancellation_reason = cancel_in.cancellation_reason
+    leave_req.cancelled_by = current_user.id
+    leave_req.cancelled_at = datetime.now(timezone.utc)
 
     # Audit log
     create_audit_log(
@@ -598,15 +629,83 @@ def cancel_leave(
         ip_address=ip_address,
     )
 
-    # Notify HR
+    db.commit()
+    db.refresh(leave_req)
+
+    # Notify HR in-app
     notify_all_hr(
         db=db,
         title="Leave Request Cancelled",
-        message=f"{employee.first_name} {employee.last_name} cancelled their leave request ({leave_req.leave_type.name}).",
+        message=f"{employee.first_name} {employee.last_name} cancelled their {previous_status.value.lower()} leave request ({leave_req.leave_type.name}). Reason: {cancel_in.cancellation_reason}",
         notification_type=NotificationType.LEAVE_CANCELLED,
         reference_id=str(leave_req.id),
         reference_type="LEAVE",
     )
+
+    return build_leave_response(leave_req)
+
+
+def revoke_leave_decision(
+    db: Session,
+    leave_id: int,
+    revoke_in: LeaveRevokeRequest,
+    current_hr: User,
+    ip_address: Optional[str] = None,
+) -> LeaveRequestResponse:
+    # Fetch LeaveRequest with row-level write lock inside transaction
+    leave_req = db.scalar(
+        select(LeaveRequest).where(LeaveRequest.id == leave_id).with_for_update()
+    )
+
+    if not leave_req:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Leave request not found.",
+        )
+
+    # Re-check status inside transaction to prevent race conditions & duplicate balance restoration
+    if leave_req.status not in (LeaveStatus.APPROVED, LeaveStatus.REJECTED):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Only APPROVED or REJECTED leave requests can be revoked. Current status: {leave_req.status.value}",
+        )
+
+    previous_status = leave_req.status
+
+    # Row lock balance: if previous status was APPROVED, restore used_days exactly once
+    if previous_status == LeaveStatus.APPROVED:
+        balance = get_or_create_leave_balance(
+            db, leave_req.employee_id, leave_req.leave_type_id, leave_req.start_date.year, lock=True
+        )
+        balance.used_days = max(Decimal("0.00"), balance.used_days - leave_req.duration)
+
+    leave_req.status = LeaveStatus.REVOKED
+    leave_req.revocation_reason = revoke_in.revocation_reason
+    leave_req.revoked_by = current_hr.id
+    leave_req.revoked_at = datetime.now(timezone.utc)
+
+    # Audit log
+    create_audit_log(
+        db=db,
+        action=AuditAction.LEAVE_REVOKED,
+        user_id=current_hr.id,
+        ip_address=ip_address,
+    )
+
+    db.commit()
+    db.refresh(leave_req)
+
+    # Notify employee in-app
+    if leave_req.employee:
+        create_notification(
+            db=db,
+            user_id=leave_req.employee.user_id,
+            title="Leave Decision Revoked",
+            message=f"HR revoked the decision on your {leave_req.leave_type.name} leave request. Reason: {revoke_in.revocation_reason}",
+            notification_type=NotificationType.LEAVE_CANCELLED,
+            reference_id=str(leave_req.id),
+            reference_type="LEAVE",
+        )
 
     return build_leave_response(leave_req)
 
@@ -872,6 +971,12 @@ def build_leave_response(leave_req: LeaveRequest) -> LeaveRequestResponse:
         hr_remarks=leave_req.hr_remarks,
         reviewed_by=leave_req.reviewed_by,
         reviewed_at=leave_req.reviewed_at,
+        cancellation_reason=leave_req.cancellation_reason,
+        cancelled_by=leave_req.cancelled_by,
+        cancelled_at=leave_req.cancelled_at,
+        revocation_reason=leave_req.revocation_reason,
+        revoked_by=leave_req.revoked_by,
+        revoked_at=leave_req.revoked_at,
         created_at=leave_req.created_at,
         updated_at=leave_req.updated_at,
         attachments=leave_req.attachments or [],

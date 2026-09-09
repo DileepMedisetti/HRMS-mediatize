@@ -5,11 +5,9 @@ import { useTheme } from "./shared/context/ThemeContext";
 
 import Welcome from "./authentication_service/pages/Welcome";
 import Login from "./authentication_service/pages/Login";
-import ForgotPassword from "./authentication_service/pages/ForgotPassword";
-import ChangePassword from "./authentication_service/pages/ChangePassword";
 
 import HRDashboard from "./authentication_service/pages/HRDashboard";
-import PasswordResetRequests from "./authentication_service/pages/PasswordResetRequests";
+import HRProfile from "./authentication_service/pages/HRProfile";
 import EmployeeDashboard from "./authentication_service/pages/EmployeeDashboard";
 
 import EmployeeList from "./employee_service/pages/EmployeeList";
@@ -53,6 +51,7 @@ import HRGoals from "./performance_service/pages/HRGoals";
 
 import ProtectedRoute from "./authentication_service/routes/ProtectedRoute";
 import RoleProtectedRoute from "./authentication_service/routes/RoleProtectedRoute";
+import PublicOnlyRoute from "./authentication_service/routes/PublicOnlyRoute";
 
 
 
@@ -64,40 +63,19 @@ function App() {
       <Routes>
 
         {/* =====================================================
-            PUBLIC ROUTES
+            PUBLIC / ANONYMOUS ONLY ROUTES
+            Redirects authenticated users to their dashboard
         ===================================================== */}
 
-        <Route
-          path="/"
-          element={<Welcome />}
-        />
-
-        <Route
-          path="/login"
-          element={<Login />}
-        />
-
-        <Route
-          path="/forgot-password"
-          element={<ForgotPassword />}
-        />
-
-        {/* =====================================================
-            CHANGE PASSWORD
-            Authenticated users can access this route even when
-            must_change_password is true.
-        ===================================================== */}
-
-        <Route
-          element={
-            <ProtectedRoute
-              allowPasswordChange={true}
-            />
-          }
-        >
+        <Route element={<PublicOnlyRoute />}>
           <Route
-            path="/change-password"
-            element={<ChangePassword />}
+            path="/"
+            element={<Welcome />}
+          />
+
+          <Route
+            path="/login"
+            element={<Login />}
           />
         </Route>
 
@@ -121,6 +99,14 @@ function App() {
             <Route
               path="/hr/dashboard"
               element={<HRDashboard />}
+            />
+            <Route
+              path="/hr/profile"
+              element={<HRProfile editMode={false} />}
+            />
+            <Route
+              path="/hr/profile/edit"
+              element={<HRProfile editMode={true} />}
             />
             <Route
               path="/hr/employees"
@@ -161,10 +147,6 @@ function App() {
             <Route
               path="/hr/leave-balances"
               element={<LeaveBalances />}
-            />
-            <Route
-              path="/hr/password-reset-requests"
-              element={<PasswordResetRequests />}
             />
             <Route
               path="/hr/projects"

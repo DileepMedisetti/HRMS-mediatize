@@ -3,7 +3,6 @@ import pytest
 from fastapi import HTTPException
 
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
 from app.employee_service.models import EmploymentStatus
 from app.employee_service.schemas import EmployeeCreate, EmployeeSelfUpdate, EmployeeUpdate
 from app.employee_service.service import (
@@ -21,14 +20,13 @@ from app.employee_service.service import (
 
 @pytest.fixture(autouse=True)
 def mock_smtp_send():
-    with patch("app.employee_service.service.send_email") as mock_send:
+    with patch("app.employee_service.service.send_employee_welcome_email") as mock_send:
         yield mock_send
 
 
 def test_create_and_retrieve_employee(db_session):
     hr = User(
         email="hr_creator@example.com",
-        password_hash=hash_password("hrpass123"),
         role=UserRole.HR,
         is_active=True,
     )
@@ -60,7 +58,6 @@ def test_create_and_retrieve_employee(db_session):
 def test_duplicate_email_creation_fails(db_session):
     hr = User(
         email="hr_creator2@example.com",
-        password_hash=hash_password("hrpass123"),
         role=UserRole.HR,
         is_active=True,
     )
@@ -82,7 +79,6 @@ def test_duplicate_email_creation_fails(db_session):
 def test_update_and_deactivate_employee(db_session):
     hr = User(
         email="hr_creator3@example.com",
-        password_hash=hash_password("hrpass123"),
         role=UserRole.HR,
         is_active=True,
     )
@@ -119,7 +115,6 @@ def test_update_and_deactivate_employee(db_session):
 def test_archive_employee(db_session):
     hr = User(
         email="hr_creator4@example.com",
-        password_hash=hash_password("hrpass123"),
         role=UserRole.HR,
         is_active=True,
     )

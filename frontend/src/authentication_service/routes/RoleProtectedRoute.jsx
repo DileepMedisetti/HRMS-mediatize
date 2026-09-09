@@ -2,6 +2,8 @@ import { Navigate, Outlet } from "react-router-dom";
 
 import { useAuth } from "../hooks/useAuth";
 
+import AuthLoadingScreen from "../../shared/components/AuthLoadingScreen";
+
 function RoleProtectedRoute({ allowedRoles }) {
   const { user, loading } = useAuth();
 
@@ -10,18 +12,7 @@ function RoleProtectedRoute({ allowedRoles }) {
    * the authentication session.
    */
   if (loading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <p>Loading...</p>
-      </div>
-    );
+    return <AuthLoadingScreen />;
   }
 
   /*

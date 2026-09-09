@@ -40,6 +40,7 @@ export const updateMyGoalStatus = (id, data) => performanceApi.patch(`/performan
 
 // HR Performance APIs
 export const getHRPerformanceDashboard = () => performanceApi.get("/performance/dashboard");
+export const getHRPerformanceAnalytics = () => performanceApi.get("/performance/analytics");
 export const getEmployeePerformanceDetails = (employeeId) => performanceApi.get(`/performance/employees/${employeeId}`);
 export const getAllPerformanceReviews = (params) => performanceApi.get("/performance/reviews", { params });
 export const createPerformanceReview = (data) => performanceApi.post("/performance/reviews", data);

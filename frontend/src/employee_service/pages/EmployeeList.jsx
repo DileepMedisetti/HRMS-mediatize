@@ -163,13 +163,13 @@ export default function EmployeeList() {
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Employee</th>
-                    <th style={styles.th}>Code</th>
-                    <th style={styles.th}>Email</th>
-                    <th style={styles.th}>Phone</th>
-                    <th style={styles.th}>Joining Date</th>
-                    <th style={styles.th}>Status</th>
-                    <th style={styles.th}>Actions</th>
+                    <th style={{ ...styles.th, minWidth: "180px" }}>Employee</th>
+                    <th style={{ ...styles.th, minWidth: "90px" }}>Code</th>
+                    <th style={{ ...styles.th, minWidth: "200px" }}>Email</th>
+                    <th style={{ ...styles.th, minWidth: "120px" }}>Phone</th>
+                    <th style={{ ...styles.th, minWidth: "115px" }}>Joining Date</th>
+                    <th style={{ ...styles.th, minWidth: "100px" }}>Status</th>
+                    <th style={{ ...styles.th, minWidth: "270px" }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -189,10 +189,8 @@ export default function EmployeeList() {
                               {emp.last_name?.[0]}
                             </div>
                           )}
-                          <div>
-                            <div style={styles.empName}>
-                              {emp.first_name} {emp.last_name}
-                            </div>
+                          <div style={styles.empName}>
+                            {emp.first_name} {emp.last_name}
                           </div>
                         </div>
                       </td>
@@ -200,7 +198,7 @@ export default function EmployeeList() {
                         <code style={styles.codeBadge}>{emp.employee_code}</code>
                       </td>
                       <td style={styles.td}>
-                        <span style={{ overflowWrap: "anywhere", wordBreak: "break-word" }}>
+                        <span style={styles.emailText} title={emp.email}>
                           {emp.email}
                         </span>
                       </td>
@@ -493,30 +491,35 @@ const styles = {
   },
   table: {
     width: "100%",
+    minWidth: "1080px",
     borderCollapse: "collapse",
     textAlign: "left",
   },
   th: {
     backgroundColor: "var(--bg-surface-elevated)",
     color: "var(--text-muted)",
-    padding: "0.875rem 1rem",
+    padding: "0.625rem 0.75rem",
     fontSize: "0.75rem",
     textTransform: "uppercase",
     letterSpacing: "0.05em",
     whiteSpace: "nowrap",
+    verticalAlign: "middle",
   },
   tr: {
     borderBottom: "1px solid var(--border-color)",
+    height: "64px",
   },
   td: {
-    padding: "0.875rem 1rem",
+    padding: "0.5rem 0.75rem",
     fontSize: "0.875rem",
     color: "var(--text-primary)",
+    verticalAlign: "middle",
+    whiteSpace: "nowrap",
   },
   employeeCell: {
     display: "flex",
     alignItems: "center",
-    gap: "0.75rem",
+    gap: "0.625rem",
   },
   avatarImg: {
     width: "38px",
@@ -541,7 +544,7 @@ const styles = {
   empName: {
     fontWeight: "600",
     color: "var(--text-primary)",
-    wordBreak: "break-word",
+    whiteSpace: "nowrap",
   },
   codeBadge: {
     backgroundColor: "var(--bg-surface-elevated)",
@@ -551,6 +554,14 @@ const styles = {
     fontFamily: "var(--font-mono)",
     fontSize: "0.75rem",
     display: "inline-block",
+    whiteSpace: "nowrap",
+  },
+  emailText: {
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    display: "block",
+    maxWidth: "220px",
   },
   badgeActive: {
     backgroundColor: "var(--success-bg)",
@@ -594,7 +605,9 @@ const styles = {
   },
   actionGroup: {
     display: "flex",
-    flexWrap: "wrap",
+    alignItems: "center",
+    flexWrap: "nowrap",
+    whiteSpace: "nowrap",
     gap: "0.375rem",
   },
   actionBtnView: {
@@ -606,6 +619,7 @@ const styles = {
     fontSize: "0.75rem",
     fontWeight: "600",
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   actionBtnEdit: {
     backgroundColor: "var(--primary-color)",
@@ -616,6 +630,7 @@ const styles = {
     fontSize: "0.75rem",
     fontWeight: "600",
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   actionBtnActivate: {
     backgroundColor: "var(--success-color)",
@@ -626,6 +641,7 @@ const styles = {
     fontSize: "0.75rem",
     fontWeight: "600",
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   actionBtnDeactivate: {
     backgroundColor: "var(--warning-color)",
@@ -636,6 +652,7 @@ const styles = {
     fontSize: "0.75rem",
     fontWeight: "600",
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   actionBtnArchive: {
     backgroundColor: "var(--danger-color)",
@@ -646,6 +663,7 @@ const styles = {
     fontSize: "0.75rem",
     fontWeight: "600",
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
 
   /* MOBILE CARDS STYLING */

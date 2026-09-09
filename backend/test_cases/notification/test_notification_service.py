@@ -1,6 +1,5 @@
 import pytest
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
 from app.notification_service.enums import NotificationType
 from app.notification_service import service
 
@@ -8,7 +7,6 @@ from app.notification_service import service
 def create_test_user(db, email, role=UserRole.EMPLOYEE, is_active=True):
     user = User(
         email=email,
-        password_hash=hash_password("Password123!"),
         role=role,
         is_active=is_active,
     )

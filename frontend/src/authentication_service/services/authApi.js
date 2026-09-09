@@ -38,9 +38,6 @@ authApi.interceptors.request.use(
  * =========================================================
  *
  * Handles expired or invalid authenticated sessions.
- *
- * Login and Forgot Password requests are not treated as
- * session-expiration events when no JWT is stored.
  */
 
 authApi.interceptors.response.use(
@@ -64,13 +61,26 @@ authApi.interceptors.response.use(
   }
 );
 
-export const getPasswordResetRequests = () =>
-  authApi.get("/password-reset-requests");
+export const requestOTP = (email) =>
+  authApi.post("/request-otp", { email });
 
-export const approvePasswordResetRequest = (requestId) =>
-  authApi.post(`/password-reset-requests/${requestId}/approve`);
+export const verifyOTP = (email, otp) =>
+  authApi.post("/verify-otp", { email, otp });
 
-export const rejectPasswordResetRequest = (requestId) =>
-  authApi.post(`/password-reset-requests/${requestId}/reject`);
+export const getHRProfile = () =>
+  authApi.get("/hr/profile");
+
+export const updateHRProfile = (data) =>
+  authApi.put("/hr/profile", data);
+
+export const uploadHRProfilePhoto = (formData) =>
+  authApi.post("/hr/profile/photo", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+export const deleteHRProfilePhoto = () =>
+  authApi.delete("/hr/profile/photo");
 
 export default authApi;

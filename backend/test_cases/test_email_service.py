@@ -2,21 +2,22 @@ from unittest.mock import patch
 
 from app.email_service.service import (
     send_announcement_email,
-    send_password_reset_email,
+    send_otp_email,
     send_project_assignment_email,
 )
 
 
 @patch("app.email_service.service.send_email")
-def test_send_password_reset_email(mock_send_email):
+def test_send_otp_email(mock_send_email):
     recipient_email = "abc123@gmail.com"
-    temporary_password = "Test@12345"
-    login_url = "http://localhost:5173/login"
+    otp_code = "019284"
+    employee_name = "John Doe"
 
-    send_password_reset_email(
+    send_otp_email(
         recipient_email=recipient_email,
-        temporary_password=temporary_password,
-        login_url=login_url,
+        otp_code=otp_code,
+        employee_name=employee_name,
+        expire_minutes=10,
     )
 
     mock_send_email.assert_called_once()
@@ -26,21 +27,20 @@ def test_send_password_reset_email(mock_send_email):
     # Verify recipient and subject
     assert call_kwargs["recipient_email"] == recipient_email
     assert call_kwargs["subject"] == (
-        "Your Mediatize HRMS Password Reset"
+        "[HRMS] Your Login Verification Code"
     )
 
     # Verify HTML email contains required information
     html_content = call_kwargs["html_content"]
 
-    assert recipient_email in html_content
-    assert temporary_password in html_content
-    assert login_url in html_content
+    assert employee_name in html_content
+    assert otp_code in html_content
 
     # Verify plain-text fallback contains required information
     plain_text_content = call_kwargs["plain_text_content"]
 
-    assert recipient_email in plain_text_content
-    assert temporary_password in plain_text_content
+    assert employee_name in plain_text_content
+    assert otp_code in plain_text_content
 
 
 @patch("app.email_service.service.send_email")

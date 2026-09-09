@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.authentication_service.dependencies import (
     get_current_hr,
-    get_current_user_with_password_check,
+    get_current_user,
 )
 from app.authentication_service.models import User
 from app.complaint_service import service
@@ -49,7 +49,7 @@ router = APIRouter(prefix="/complaints", tags=["Complaint Management"])
 )
 def get_active_categories_endpoint(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     return service.get_active_categories(db)
 
@@ -62,15 +62,31 @@ def get_active_categories_endpoint(
 )
 async def submit_complaint_endpoint(
     request: Request,
-    category_id: int = Form(..., description="ID of the selected active complaint category"),
-    subject: str = Form(..., description="Subject line of the complaint"),
-    description: str = Form(..., description="Detailed description of the workplace grievance"),
-    priority: Optional[ComplaintPriority] = Form(ComplaintPriority.MEDIUM, description="Initial priority level"),
-    attachment: Optional[UploadFile] = File(None, description="Optional supporting document attachment"),
+    category_id: int = Form(
+        ...,
+        description="ID of the selected active complaint category",
+    ),
+    subject: str = Form(
+        ...,
+        description="Subject line of the complaint",
+    ),
+    description: str = Form(
+        ...,
+        description="Detailed description of the workplace grievance",
+    ),
+    priority: Optional[ComplaintPriority] = Form(
+        ComplaintPriority.MEDIUM,
+        description="Initial priority level",
+    ),
+    attachment: Optional[UploadFile] = File(
+        None,
+        description="Optional supporting document attachment",
+    ),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     ip_address = request.client.host if request.client else None
+
     return await service.create_complaint(
         db=db,
         current_user=current_user,
@@ -92,10 +108,13 @@ async def submit_complaint_endpoint(
 def get_my_complaints_endpoint(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    complaint_status: Optional[ComplaintStatus] = Query(None, alias="status"),
+    complaint_status: Optional[ComplaintStatus] = Query(
+        None,
+        alias="status",
+    ),
     category_id: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     return service.get_my_complaints(
         db=db,
@@ -116,7 +135,7 @@ def get_my_complaints_endpoint(
 def get_my_complaint_by_id_endpoint(
     complaint_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user_with_password_check),
+    current_user: User = Depends(get_current_user),
 ):
     return service.get_my_complaint_by_id(
         db=db,
@@ -155,6 +174,7 @@ def create_category_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.create_category(
         db=db,
         data=data,
@@ -177,6 +197,7 @@ def update_category_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.update_category(
         db=db,
         category_id=category_id,
@@ -199,6 +220,7 @@ def toggle_category_status_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.toggle_category_status(
         db=db,
         category_id=category_id,
@@ -220,7 +242,10 @@ def toggle_category_status_endpoint(
 def get_all_complaints_hr_endpoint(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    complaint_status: Optional[ComplaintStatus] = Query(None, alias="status"),
+    complaint_status: Optional[ComplaintStatus] = Query(
+        None,
+        alias="status",
+    ),
     priority: Optional[ComplaintPriority] = Query(None),
     category_id: Optional[int] = Query(None),
     employee_id: Optional[int] = Query(None),
@@ -275,6 +300,7 @@ def update_status_hr_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.update_status_hr(
         db=db,
         complaint_id=complaint_id,
@@ -298,6 +324,7 @@ def update_priority_hr_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.update_priority_hr(
         db=db,
         complaint_id=complaint_id,
@@ -321,6 +348,7 @@ def respond_complaint_hr_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.respond_complaint_hr(
         db=db,
         complaint_id=complaint_id,
@@ -344,6 +372,7 @@ def resolve_complaint_hr_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.resolve_complaint_hr(
         db=db,
         complaint_id=complaint_id,
@@ -366,6 +395,7 @@ def close_complaint_hr_endpoint(
     current_hr: User = Depends(get_current_hr),
 ):
     ip_address = request.client.host if request.client else None
+
     return service.close_complaint_hr(
         db=db,
         complaint_id=complaint_id,

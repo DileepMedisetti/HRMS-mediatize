@@ -1,13 +1,15 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Users, Clock3, CalendarDays, Tags, ClipboardList, ShieldCheck, ArrowRight, Plus, KeyRound, FileText, AlertCircle, Award } from "lucide-react";
+import { Users, Clock3, CalendarDays, Tags, ClipboardList, ShieldCheck, ArrowRight, Plus, FileText, AlertCircle, Award } from "lucide-react";
 
 import AppLayout from "../../shared/components/AppLayout";
 import DashboardDateTime from "../../shared/components/DashboardDateTime";
+import { getUserDisplayName } from "../../shared/components/Header";
 import { useAuth } from "../hooks/useAuth";
 
 export default function HRDashboard() {
   const { user } = useAuth();
+  const displayName = getUserDisplayName(user);
 
   return (
     <AppLayout title="HR Administration Portal">
@@ -15,7 +17,7 @@ export default function HRDashboard() {
       <div style={styles.welcomeBanner}>
         <div>
           <h2 style={styles.welcomeTitle}>
-            Welcome back, <span style={styles.highlight}>{user?.email?.split("@")[0] || "HR Admin"}</span>
+            Welcome back, <span style={styles.highlight}>{displayName !== "User" ? displayName : "HR Admin"}</span>
           </h2>
           <p style={styles.subtitle || styles.welcomeSubtitle}>
             Mediatize Tech HRMS — Workforce Management & Administration Overview
@@ -149,23 +151,6 @@ export default function HRDashboard() {
           </div>
         </div>
 
-        {/* Password Reset Requests Card */}
-        <div className="hrms-card hrms-card-interactive" style={styles.card}>
-          <div style={styles.cardHeader}>
-            <div style={{ ...styles.iconBox, backgroundColor: "rgba(234, 179, 8, 0.2)", color: "#facc15" }}>
-              <KeyRound size={22} />
-            </div>
-            <div>
-              <h4 style={styles.cardTitle}>Password Reset Requests</h4>
-              <p style={styles.cardSubtitle}>Review employee password reset requests & authorize account recovery</p>
-            </div>
-          </div>
-          <div style={styles.cardActions}>
-            <Link to="/hr/password-reset-requests" className="hrms-btn hrms-btn-primary" style={{ textAlign: "center", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem" }}>
-              Password Reset Center <ArrowRight size={14} />
-            </Link>
-          </div>
-        </div>
 
         {/* Audit Logs Card */}
         <div className="hrms-card hrms-card-interactive" style={styles.card}>

@@ -6,6 +6,7 @@ class LeaveStatus(str, Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     CANCELLED = "CANCELLED"
+    REVOKED = "REVOKED"
 
 
 class LeaveDayType(str, Enum):

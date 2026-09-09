@@ -37,7 +37,7 @@ export const getMyLeaveBalance = (params) => leaveApi.get("/leaves/me/balance", 
 export const getMyLeaves = (params) => leaveApi.get("/leaves/me", { params });
 export const getMyLeaveDetails = (id) => leaveApi.get(`/leaves/me/${id}`);
 export const applyLeave = (formData) => leaveApi.post("/leaves", formData);
-export const cancelLeave = (id) => leaveApi.patch(`/leaves/${id}/cancel`);
+export const cancelLeave = (id, data) => leaveApi.patch(`/leaves/${id}/cancel`, data);
 
 // HR Leave & Leave Type APIs
 export const getAllLeaveTypes = () => leaveApi.get("/leave-types/all");
@@ -50,6 +50,7 @@ export const getAllLeaves = (params) => leaveApi.get("/leaves", { params });
 export const getLeaveDetails = (id) => leaveApi.get(`/leaves/${id}`);
 export const approveLeave = (id, data) => leaveApi.patch(`/leaves/${id}/approve`, data);
 export const rejectLeave = (id, data) => leaveApi.patch(`/leaves/${id}/reject`, data);
+export const revokeLeave = (id, data) => leaveApi.patch(`/leaves/${id}/revoke`, data);
 
 export const getEmployeeBalances = (employeeId, params) => leaveApi.get(`/leave-balances/${employeeId}`, { params });
 export const updateEmployeeBalance = (employeeId, leaveTypeId, data, params) => leaveApi.put(`/leave-balances/${employeeId}/${leaveTypeId}`, data, { params });

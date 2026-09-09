@@ -1,28 +1,58 @@
 from datetime import datetime
-
-from pydantic import BaseModel, EmailStr, Field
-
-from app.authentication_service.models import UserRole
+from pydantic import BaseModel, EmailStr, field_validator
 
 
-class LoginRequest(BaseModel):
+class OTPRequestSchema(BaseModel):
     """
-    Data required to authenticate a user.
+    Request a login OTP using an email address.
     """
 
     email: EmailStr
 
-    role: UserRole
 
-    password: str = Field(
-        min_length=6,
-        max_length=128,
-    )
+class OTPVerifySchema(BaseModel):
+    """
+    Verify a 6-digit email OTP.
+
+    OTP is intentionally represented as a string so that
+    leading zeros are preserved.
+    """
+
+    email: EmailStr
+    otp: str
+
+    @field_validator("otp")
+    @classmethod
+    def validate_otp(cls, value: str) -> str:
+        value = value.strip()
+
+        if len(value) != 6:
+            raise ValueError(
+                "OTP must be exactly 6 numeric digits"
+            )
+
+        if not value.isdigit():
+            raise ValueError(
+                "OTP must be exactly 6 numeric digits"
+            )
+
+        return value
+
+
+class OTPRequestResponse(BaseModel):
+    """
+    Response returned after requesting an OTP.
+
+    The actual OTP is never returned by the API.
+    """
+
+    message: str
+    expires_in_seconds: int
 
 
 class TokenResponse(BaseModel):
     """
-    Response returned after successful authentication.
+    JWT returned after successful OTP verification.
     """
 
     access_token: str
@@ -31,7 +61,7 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """
-    Public user information.
+    Public authenticated-user information.
     """
 
     id: int
@@ -39,54 +69,36 @@ class UserResponse(BaseModel):
     employee_id: str | None
     role: str
     is_active: bool
-    must_change_password: bool
+    first_name: str | None = None
+    last_name: str | None = None
+    profile_photo_url: str | None = None
 
 
-class ChangePasswordRequest(BaseModel):
+class HRProfileResponse(BaseModel):
     """
-    Data required to change the current password.
-    """
-
-    current_password: str = Field(
-        min_length=6,
-        max_length=128,
-    )
-
-    new_password: str = Field(
-        min_length=6,
-        max_length=128,
-    )
-
-    confirm_password: str = Field(
-        min_length=6,
-        max_length=128,
-    )
-
-
-class ForgotPasswordRequest(BaseModel):
-    """
-    Data required to request a password reset.
-    """
-
-    email: EmailStr
-
-
-class PasswordResetActionResponse(BaseModel):
-    """
-    Response for password reset operations.
-    """
-
-    message: str
-
-
-class PasswordResetRequestResponse(BaseModel):
-    """
-    Password reset request information visible to HR.
+    Response schema for HR Profile details.
     """
 
     id: int
-    user_id: int
     email: EmailStr
-    status: str
-    requested_at: datetime
-    reviewed_at: datetime | None
+    role: str
+    is_active: bool
+    first_name: str | None = None
+    last_name: str | None = None
+    address: str | None = None
+    profile_photo_url: str | None = None
+    employee_id: str | None = None
+    last_login_at: datetime | None = None
+    created_at: datetime | None = None
+
+
+class HRProfileUpdateSchema(BaseModel):
+    """
+    Schema for updating editable HR Profile fields (Name & Optional Address).
+    Email, Role, and is_active MUST NOT be editable.
+    """
+
+    first_name: str | None = None
+    last_name: str | None = None
+    address: str | None = None
+

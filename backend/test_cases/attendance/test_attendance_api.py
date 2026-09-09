@@ -2,7 +2,6 @@ from fastapi.testclient import TestClient
 import pytest
 
 from app.authentication_service.models import User, UserRole
-from app.core.security import hash_password
 from app.employee_service.models import Employee, EmploymentStatus
 from app.main import app
 
@@ -13,13 +12,11 @@ client = TestClient(app)
 def test_setup(db_session):
     emp_user = User(
         email="emp_api_test@example.com",
-        password_hash=hash_password("password123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
     )
     hr_user = User(
         email="hr_api_test@example.com",
-        password_hash=hash_password("hr1234"),
         role=UserRole.HR,
         is_active=True,
     )
@@ -43,15 +40,14 @@ def test_setup(db_session):
     db_session.add_all([emp, hr_emp])
     db_session.commit()
     emp_id = emp.id
+    emp_user_id = emp_user.id
+    hr_user_id = hr_user.id
     db_session.expunge_all()
 
-    # Login employee
-    emp_login = client.post("/auth/login", json={"email": "emp_api_test@example.com", "role": "EMPLOYEE", "password": "password123"})
-    emp_token = emp_login.json()["access_token"]
-
-    # Login HR
-    hr_login = client.post("/auth/login", json={"email": "hr_api_test@example.com", "role": "HR", "password": "hr1234"})
-    hr_token = hr_login.json()["access_token"]
+    # Generate tokens directly
+    from app.core.security import create_access_token
+    emp_token = create_access_token(user_id=emp_user_id, role="EMPLOYEE")
+    hr_token = create_access_token(user_id=hr_user_id, role="HR")
 
     return {
         "emp_user": emp_user,

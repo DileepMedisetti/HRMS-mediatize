@@ -8,7 +8,6 @@ import {
   ClipboardList,
   Bell,
   ArrowRight,
-  KeyRound,
 } from "lucide-react";
 import { markNotificationAsRead, markAllNotificationsAsRead } from "../services/notificationApi";
 
@@ -37,8 +36,6 @@ function getNotificationIcon(type) {
     case "LEAVE_REJECTED":
     case "LEAVE_CANCELLED":
       return <CalendarDays size={18} className="text-primary" />;
-    case "PASSWORD_RESET_REQUEST":
-      return <KeyRound size={18} style={{ color: "var(--warning-color, #eab308)" }} />;
     case "HOLIDAY_ANNOUNCEMENT":
       return <Megaphone size={18} className="text-warning" />;
     case "PERFORMANCE_UPDATE":
@@ -67,11 +64,6 @@ function NotificationDropdown({ notifications, unreadCount, onClose, onRefresh }
     }
     onClose();
     if (
-      item.notification_type === "PASSWORD_RESET_REQUEST" ||
-      item.reference_type === "PASSWORD_RESET"
-    ) {
-      navigate("/hr/password-reset-requests");
-    } else if (
       item.notification_type === "LEAVE_REQUEST" ||
       item.reference_type === "LEAVE"
     ) {

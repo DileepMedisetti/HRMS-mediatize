@@ -229,6 +229,36 @@ class LeaveRequest(Base):
         nullable=True,
     )
 
+    cancellation_reason: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    cancelled_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    cancelled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    revocation_reason: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    revoked_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -246,6 +276,8 @@ class LeaveRequest(Base):
     employee = relationship("Employee", backref="leave_requests")
     leave_type = relationship("LeaveType", backref="leave_requests")
     reviewer = relationship("User", foreign_keys=[reviewed_by])
+    canceller = relationship("User", foreign_keys=[cancelled_by])
+    revoker = relationship("User", foreign_keys=[revoked_by])
     attachments: Mapped[List["LeaveAttachment"]] = relationship(
         "LeaveAttachment",
         backref="leave_request",

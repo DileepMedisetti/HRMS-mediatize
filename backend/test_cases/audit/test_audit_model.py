@@ -6,7 +6,6 @@ from sqlalchemy import delete
 from app.audit_service.models import AuditAction, AuditLog
 from app.authentication_service.models import User, UserRole
 from app.core.database import SessionLocal
-from app.core.security import hash_password
 
 
 TEST_EMAIL = "audit-test@mediatize.com"
@@ -57,10 +56,8 @@ def test_user(db):
     user = User(
         email=TEST_EMAIL,
         employee_id="AUDIT001",
-        password_hash=hash_password("test123"),
         role=UserRole.EMPLOYEE,
         is_active=True,
-        must_change_password=False,
     )
 
     db.add(user)
@@ -73,7 +70,7 @@ def test_user(db):
 def test_create_audit_log(db, test_user):
     audit_log = AuditLog(
         user_id=test_user.id,
-        action=AuditAction.LOGIN_SUCCESS,
+        action=AuditAction.OTP_VERIFY_SUCCESS,
         ip_address="127.0.0.1",
     )
 
@@ -83,14 +80,14 @@ def test_create_audit_log(db, test_user):
 
     assert audit_log.id is not None
     assert audit_log.user_id == test_user.id
-    assert audit_log.action == AuditAction.LOGIN_SUCCESS
+    assert audit_log.action == AuditAction.OTP_VERIFY_SUCCESS
     assert audit_log.ip_address == "127.0.0.1"
 
 
 def test_audit_log_created_at(db, test_user):
     audit_log = AuditLog(
         user_id=test_user.id,
-        action=AuditAction.PASSWORD_CHANGE,
+        action=AuditAction.OTP_REQUESTED,
     )
 
     db.add(audit_log)
@@ -104,7 +101,7 @@ def test_audit_log_created_at(db, test_user):
 def test_audit_log_without_user(db):
     audit_log = AuditLog(
         user_id=None,
-        action=AuditAction.LOGIN_FAILURE,
+        action=AuditAction.OTP_VERIFY_FAILURE,
         ip_address="127.0.0.1",
     )
 
@@ -114,7 +111,7 @@ def test_audit_log_without_user(db):
 
     assert audit_log.id is not None
     assert audit_log.user_id is None
-    assert audit_log.action == AuditAction.LOGIN_FAILURE
+    assert audit_log.action == AuditAction.OTP_VERIFY_FAILURE
 
 
 @pytest.mark.parametrize(
@@ -122,6 +119,11 @@ def test_audit_log_without_user(db):
     [
         AuditAction.LOGIN_SUCCESS,
         AuditAction.LOGIN_FAILURE,
+        AuditAction.OTP_REQUESTED,
+        AuditAction.OTP_VERIFY_SUCCESS,
+        AuditAction.OTP_VERIFY_FAILURE,
+        AuditAction.OTP_EXPIRED,
+        AuditAction.OTP_ATTEMPT_LIMIT_REACHED,
         AuditAction.PASSWORD_CHANGE,
         AuditAction.PASSWORD_RESET_REQUESTED,
         AuditAction.PASSWORD_RESET_APPROVED,
