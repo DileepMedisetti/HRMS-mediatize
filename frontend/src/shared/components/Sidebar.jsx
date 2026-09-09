@@ -8,7 +8,6 @@ import {
   Tags,
   WalletCards,
   ClipboardList,
-  KeyRound,
   Bell,
   UserRound,
   FolderGit2,
@@ -37,47 +36,81 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, onItemClick }) 
     navigate("/login");
   };
 
-  const navItems =
+  const navSections =
     role === "HR"
       ? [
-          { label: "Dashboard", path: "/hr/dashboard", icon: LayoutDashboard },
-          { label: "HR Profile", path: "/hr/profile", icon: UserRound },
-          { label: "Employees", path: "/hr/employees", icon: Users },
-          { label: "Performance", path: "/hr/performance", icon: TrendingUp },
-          { label: "Projects", path: "/hr/projects", icon: FolderGit2 },
-          { label: "Project Roles", path: "/hr/project-roles", icon: FolderKanban },
-          { label: "Announcements", path: "/hr/announcements", icon: Megaphone },
-          { label: "Work Reports", path: "/hr/work-reports", icon: FileText },
-          { label: "Complaints", path: "/hr/complaints", icon: AlertCircle },
-          { label: "Attendance", path: "/hr/attendance", icon: CalendarCheck },
-          { label: "Leave Requests", path: "/hr/leaves", icon: CalendarDays },
-          { label: "Leave Types", path: "/hr/leave-types", icon: Tags },
-          { label: "Leave Balances", path: "/hr/leave-balances", icon: WalletCards },
-          { label: "Audit Logs", path: "/hr/audit-logs", icon: ClipboardList },
-          { label: "Notifications", path: "/notifications", icon: Bell },
+          {
+            title: "WORKSPACE",
+            items: [
+              { label: "Dashboard", path: "/hr/dashboard", icon: LayoutDashboard },
+              { label: "HR Profile", path: "/hr/profile", icon: UserRound },
+              { label: "Employees", path: "/hr/employees", icon: Users },
+              { label: "Projects", path: "/hr/projects", icon: FolderGit2 },
+              { label: "Project Roles", path: "/hr/project-roles", icon: FolderKanban },
+              { label: "Attendance", path: "/hr/attendance", icon: CalendarCheck },
+              { label: "Leave Requests", path: "/hr/leaves", icon: CalendarDays },
+            ],
+          },
+          {
+            title: "PEOPLE & OPERATIONS",
+            items: [
+              { label: "Performance", path: "/hr/performance", icon: TrendingUp },
+              { label: "Announcements", path: "/hr/announcements", icon: Megaphone },
+              { label: "Notifications", path: "/notifications", icon: Bell },
+              { label: "Leave Types", path: "/hr/leave-types", icon: Tags },
+              { label: "Leave Balances", path: "/hr/leave-balances", icon: WalletCards },
+            ],
+          },
+          {
+            title: "SUPPORT & SYSTEM",
+            items: [
+              { label: "Complaints", path: "/hr/complaints", icon: AlertCircle },
+              { label: "Work Reports", path: "/hr/work-reports", icon: FileText },
+              { label: "Audit Logs", path: "/hr/audit-logs", icon: ClipboardList },
+            ],
+          },
         ]
       : [
-          { label: "Dashboard", path: "/employee/dashboard", icon: LayoutDashboard },
-          { label: "My Profile", path: "/employee/profile", icon: UserRound },
-          { label: "My Performance", path: "/employee/performance", icon: Award },
-          { label: "My Projects", path: "/employee/projects", icon: FolderGit2 },
-          { label: "Announcements", path: "/employee/announcements", icon: Megaphone },
-          { label: "Work Reports", path: "/employee/work-reports", icon: FileText },
-          { label: "Complaints", path: "/employee/complaints", icon: AlertCircle },
-          { label: "Attendance", path: "/employee/attendance", icon: CalendarCheck },
-          { label: "Apply for Leave", path: "/employee/leave", icon: CalendarDays },
-          { label: "Notifications", path: "/notifications", icon: Bell },
+          {
+            title: "WORKSPACE",
+            items: [
+              { label: "Dashboard", path: "/employee/dashboard", icon: LayoutDashboard },
+              { label: "My Profile", path: "/employee/profile", icon: UserRound },
+              { label: "My Projects", path: "/employee/projects", icon: FolderGit2 },
+              { label: "Attendance", path: "/employee/attendance", icon: CalendarCheck },
+              { label: "Apply for Leave", path: "/employee/leave", icon: CalendarDays },
+            ],
+          },
+          {
+            title: "PEOPLE & OPERATIONS",
+            items: [
+              { label: "My Performance", path: "/employee/performance", icon: Award },
+              { label: "Announcements", path: "/employee/announcements", icon: Megaphone },
+              { label: "Notifications", path: "/notifications", icon: Bell },
+            ],
+          },
+          {
+            title: "SUPPORT & SYSTEM",
+            items: [
+              { label: "Complaints", path: "/employee/complaints", icon: AlertCircle },
+              { label: "Work Reports", path: "/employee/work-reports", icon: FileText },
+            ],
+          },
         ];
-
 
   return (
     <aside className={`hrms-sidebar ${isCollapsed ? "collapsed" : ""}`}>
       <div className="hrms-sidebar-brand">
         <div className="hrms-brand-left">
-          <div className="hrms-brand-logo" title="Mediatize HRMS">
+          <div className="hrms-brand-logo" title="Mediatize Tech HRMS">
             M
           </div>
-          {!isCollapsed && <span className="hrms-brand-title">Mediatize HRMS</span>}
+          {!isCollapsed && (
+            <div className="hrms-brand-text">
+              <span className="hrms-brand-company">MEDIATIZE TECH</span>
+              <span className="hrms-brand-title">HRMS</span>
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -95,23 +128,27 @@ export default function Sidebar({ isCollapsed, onToggleCollapse, onItemClick }) 
       </div>
 
       <nav className="hrms-sidebar-nav">
-        {!isCollapsed && <div className="hrms-nav-section-title">Navigation</div>}
-        {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
-          const IconComponent = item.icon;
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={`hrms-nav-item ${isActive ? "active" : ""}`}
-              onClick={onItemClick}
-              title={isCollapsed ? item.label : undefined}
-            >
-              <IconComponent className="hrms-nav-icon" size={18} strokeWidth={2} />
-              {!isCollapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+        {navSections.map((section, idx) => (
+          <div key={idx} className="hrms-nav-group">
+            {!isCollapsed && <div className="hrms-nav-section-title">{section.title}</div>}
+            {section.items.map((item) => {
+              const isActive = location.pathname === item.path;
+              const IconComponent = item.icon;
+              return (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`hrms-nav-item ${isActive ? "active" : ""}`}
+                  onClick={onItemClick}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <IconComponent className="hrms-nav-icon" size={18} strokeWidth={2} />
+                  {!isCollapsed && <span>{item.label}</span>}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="hrms-sidebar-footer">

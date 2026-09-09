@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { Menu } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
+import { Menu, ChevronDown, LogOut } from "lucide-react";
 import { useAuth } from "../../authentication_service/hooks/useAuth";
 import NotificationBell from "../../notification_service/components/NotificationBell";
 import ThemeToggle from "./ThemeToggle";
@@ -25,8 +26,11 @@ export function getUserDisplayName(user) {
 }
 
 export default function Header({ pageTitle, onOpenMobileMenu }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [now, setNow] = useState(() => new Date());
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const location = useLocation();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -35,6 +39,45 @@ export default function Header({ pageTitle, onOpenMobileMenu }) {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Close dropdown menu on route change
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  // Close dropdown menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  // Close dropdown menu on Escape keypress
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen]);
 
   const dateFull = now.toLocaleDateString("en-US", {
     weekday: "long",
@@ -55,6 +98,15 @@ export default function Header({ pageTitle, onOpenMobileMenu }) {
   });
 
   const displayName = getUserDisplayName(user);
+  const userRole = user?.role || "EMPLOYEE";
+  const userEmail = user?.email || "";
+
+  const handleLogout = () => {
+    setIsOpen(false);
+    if (logout) {
+      logout();
+    }
+  };
 
   return (
     <header className="hrms-header">
@@ -81,14 +133,57 @@ export default function Header({ pageTitle, onOpenMobileMenu }) {
           <span className="hrms-header-time">{timeStr}</span>
         </div>
 
-        <div className="hrms-user-profile">
-          <Avatar src={user?.profile_photo_url} name={displayName} size="sm" />
-          <div className="hrms-user-info">
-            <span className="hrms-user-name" title={displayName}>{displayName}</span>
-            <span className="hrms-role-badge">{user?.role || "EMPLOYEE"}</span>
-          </div>
+        {/* Global Profile Dropdown Component */}
+        <div className="hrms-profile-wrapper" ref={dropdownRef}>
+          <button
+            type="button"
+            className="hrms-user-profile-btn"
+            onClick={() => setIsOpen((prev) => !prev)}
+            aria-haspopup="menu"
+            aria-expanded={isOpen}
+            aria-label="User profile menu"
+          >
+            <Avatar src={user?.profile_photo_url} name={displayName} size="sm" />
+            <div className="hrms-user-info">
+              <span className="hrms-user-name" title={displayName}>
+                {displayName}
+              </span>
+              <span className="hrms-role-badge">{userRole}</span>
+            </div>
+            <ChevronDown
+              size={14}
+              className={`hrms-profile-chevron ${isOpen ? "open" : ""}`}
+            />
+          </button>
+
+          {/* Dropdown Menu Popover */}
+          {isOpen && (
+            <div className="hrms-profile-dropdown" role="menu" aria-label="Profile actions">
+              <div className="hrms-dropdown-header">
+                <Avatar src={user?.profile_photo_url} name={displayName} size="md" />
+                <div className="hrms-dropdown-user-details">
+                  <span className="hrms-dropdown-name">{displayName}</span>
+                  {userEmail && <span className="hrms-dropdown-email">{userEmail}</span>}
+                  <span className="hrms-dropdown-role-badge">{userRole}</span>
+                </div>
+              </div>
+
+              <div className="hrms-dropdown-body">
+                <button
+                  type="button"
+                  className="hrms-dropdown-logout-btn"
+                  onClick={handleLogout}
+                  role="menuitem"
+                >
+                  <LogOut size={16} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </header>
   );
 }
+

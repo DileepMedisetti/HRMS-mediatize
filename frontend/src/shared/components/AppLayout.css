@@ -67,13 +67,37 @@
   transition: all 0.2s ease;
 }
 
+.hrms-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.hrms-brand-company {
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--primary-color);
+  text-transform: uppercase;
+}
+
 .hrms-brand-title {
-  font-size: 1.1rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.02em;
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hrms-nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
 }
 
 .hrms-sidebar-toggle-btn {
@@ -372,14 +396,152 @@
   }
 }
 
-.hrms-user-profile {
+.hrms-profile-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.hrms-user-profile,
+.hrms-user-profile-btn {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  padding: 0.25rem 0.625rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.35rem;
   border-radius: 9999px;
   background-color: var(--bg-surface-elevated);
   border: 1px solid var(--border-color);
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: all var(--transition-fast);
+  outline: none;
+}
+
+.hrms-user-profile-btn:hover {
+  background-color: var(--bg-surface);
+  border-color: var(--border-strong, var(--primary-color));
+  box-shadow: var(--shadow-sm);
+}
+
+.hrms-user-profile-btn:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.hrms-profile-chevron {
+  color: var(--text-muted);
+  transition: transform var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.hrms-profile-chevron.open {
+  transform: rotate(180deg);
+  color: var(--primary-color);
+}
+
+.hrms-profile-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 320px;
+  max-width: calc(100vw - 24px);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg, 12px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+  overflow: hidden;
+  animation: hrmsDropdownFadeIn 0.15s ease-out forwards;
+}
+
+@keyframes hrmsDropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.hrms-dropdown-header {
+  padding: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  background-color: var(--bg-surface-elevated, rgba(148, 163, 184, 0.04));
+  border-bottom: 1px solid var(--border-color);
+}
+
+.hrms-dropdown-user-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.hrms-dropdown-name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hrms-dropdown-email {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.15rem;
+}
+
+.hrms-dropdown-role-badge {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background-color: var(--primary-light, rgba(37, 99, 235, 0.12));
+  color: var(--primary-color);
+  margin-top: 0.35rem;
+}
+
+.hrms-dropdown-body {
+  padding: 0.4rem;
+}
+
+.hrms-dropdown-logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md, 8px);
+  border: none;
+  background: transparent;
+  color: var(--danger-color, #ef4444);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+  text-align: left;
+}
+
+.hrms-dropdown-logout-btn:hover {
+  background-color: var(--danger-bg, rgba(239, 68, 68, 0.08));
+}
+
+.hrms-dropdown-logout-btn:focus-visible {
+  outline: 2px solid var(--danger-color, #ef4444);
+  outline-offset: 1px;
 }
 
 .hrms-user-info {
