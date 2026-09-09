@@ -316,7 +316,16 @@ def assign_employee_to_project(db: Session, project_id: int, schema: ProjectAssi
     if project.status in (ProjectStatus.COMPLETED, ProjectStatus.CANCELLED):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot assign employee to a {project.status} project.")
 
+    # Dual ID domain resolution: try Employee.id first, then Employee.user_id
     employee = db.get(Employee, schema.employee_id)
+    if not employee:
+        employee = db.scalar(
+            select(Employee).where(
+                Employee.user_id == schema.employee_id,
+                Employee.deleted_at.is_(None),
+            )
+        )
+
     if not employee or employee.employment_status != EmploymentStatus.ACTIVE or employee.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Employee not found or is not currently ACTIVE.")
 
@@ -324,11 +333,11 @@ def assign_employee_to_project(db: Session, project_id: int, schema: ProjectAssi
     if not role or not role.is_active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Project role not found or is inactive.")
 
-    # Check active duplicate assignment
+    # Check active duplicate assignment using both Employee.id and Employee.user_id aliases
     existing_active = db.scalar(
         select(ProjectAssignment).where(
             ProjectAssignment.project_id == project_id,
-            ProjectAssignment.employee_id == schema.employee_id,
+            ProjectAssignment.employee_id.in_([employee.id, employee.user_id]),
             ProjectAssignment.status == AssignmentStatus.ACTIVE,
         )
     )
@@ -340,7 +349,7 @@ def assign_employee_to_project(db: Session, project_id: int, schema: ProjectAssi
 
     assignment = ProjectAssignment(
         project_id=project_id,
-        employee_id=schema.employee_id,
+        employee_id=employee.id,
         project_role_id=schema.project_role_id,
         assigned_date=schema.assigned_date or date.today(),
         status=AssignmentStatus.ACTIVE,
@@ -448,7 +457,7 @@ def get_project_team(db: Session, project_id: int) -> List[dict]:
         .where(ProjectAssignment.project_id == project_id)
         .order_by(ProjectAssignment.status.asc(), ProjectAssignment.assigned_date.desc())
     )
-    assignments = db.scalars(stmt).all()
+    assignments = db.scalars(stmt).unique().all()
 
     result = []
     for a in assignments:
@@ -475,6 +484,21 @@ def get_project_team(db: Session, project_id: int) -> List[dict]:
 # EMPLOYEE SELF-SERVICE & IDOR PROTECTION
 # =========================================================
 def get_employee_my_projects(db: Session, employee_id: int) -> List[dict]:
+    emp = db.get(Employee, employee_id)
+    emp_ids = [employee_id]
+    if emp:
+        emp_ids.extend([emp.id, emp.user_id])
+    else:
+        alt_emp = db.scalar(
+            select(Employee).where(
+                Employee.user_id == employee_id,
+                Employee.deleted_at.is_(None),
+            )
+        )
+        if alt_emp:
+            emp_ids.extend([alt_emp.id, alt_emp.user_id])
+    emp_ids = list(set(emp_ids))
+
     stmt = (
         select(ProjectAssignment)
         .options(
@@ -482,12 +506,12 @@ def get_employee_my_projects(db: Session, employee_id: int) -> List[dict]:
             joinedload(ProjectAssignment.project_role),
         )
         .where(
-            ProjectAssignment.employee_id == employee_id,
+            ProjectAssignment.employee_id.in_(emp_ids),
             ProjectAssignment.status == AssignmentStatus.ACTIVE,
         )
         .order_by(ProjectAssignment.assigned_date.desc())
     )
-    assignments = db.scalars(stmt).all()
+    assignments = db.scalars(stmt).unique().all()
 
     result = []
     for a in assignments:
@@ -521,11 +545,26 @@ def get_employee_my_projects(db: Session, employee_id: int) -> List[dict]:
 
 
 def get_employee_project_details(db: Session, employee_id: int, project_id: int) -> dict:
+    emp = db.get(Employee, employee_id)
+    emp_ids = [employee_id]
+    if emp:
+        emp_ids.extend([emp.id, emp.user_id])
+    else:
+        alt_emp = db.scalar(
+            select(Employee).where(
+                Employee.user_id == employee_id,
+                Employee.deleted_at.is_(None),
+            )
+        )
+        if alt_emp:
+            emp_ids.extend([alt_emp.id, alt_emp.user_id])
+    emp_ids = list(set(emp_ids))
+
     # IDOR Check: Must have active assignment
     active_assignment = db.scalar(
         select(ProjectAssignment).where(
             ProjectAssignment.project_id == project_id,
-            ProjectAssignment.employee_id == employee_id,
+            ProjectAssignment.employee_id.in_(emp_ids),
             ProjectAssignment.status == AssignmentStatus.ACTIVE,
         )
     )

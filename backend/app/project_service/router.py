@@ -1,6 +1,7 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.authentication_service.dependencies import (
@@ -9,6 +10,7 @@ from app.authentication_service.dependencies import (
 )
 from app.authentication_service.models import User
 from app.core.database import get_db
+from app.employee_service.models import Employee
 from app.employee_service.service import get_employee_by_user_id
 from app.project_service.models import ProjectPriority, ProjectStatus
 from app.project_service.schemas import (
@@ -150,9 +152,11 @@ def get_my_assigned_projects(
     db: Session = Depends(get_db),
 ):
     """Retrieve projects assigned to the current employee."""
-    emp = get_employee_by_user_id(
-        db,
-        current_user.id,
+    emp = db.scalar(
+        select(Employee).where(
+            Employee.user_id == current_user.id,
+            Employee.deleted_at.is_(None),
+        )
     )
 
     if not emp:
@@ -173,13 +177,18 @@ def get_my_assigned_project_details(
     db: Session = Depends(get_db),
 ):
     """Retrieve details for a specific project assigned to current employee (IDOR Protected)."""
-    emp = get_employee_by_user_id(
-        db,
-        current_user.id,
+    emp = db.scalar(
+        select(Employee).where(
+            Employee.user_id == current_user.id,
+            Employee.deleted_at.is_(None),
+        )
     )
 
     if not emp:
-        return []
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. You are not an active member of this project.",
+        )
 
     return get_employee_project_details(
         db,

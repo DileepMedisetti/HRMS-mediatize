@@ -253,3 +253,46 @@ def test_hr_dashboard_metrics(client, hr_user_and_token):
     assert "active_projects" in data
     assert "completed_projects" in data
     assert "overdue_projects" in data
+
+
+def test_employee_get_my_projects_user_without_employee_profile(client, hr_user_and_token):
+    _, hr_token = hr_user_and_token
+    headers = {"Authorization": f"Bearer {hr_token}"}
+    # HR user without Employee profile calls GET /projects/my-projects -> returns 200 with empty list
+    response = client.get("/projects/my-projects", headers=headers)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == []
+
+
+def test_employee_get_my_projects_dual_id_mapping(client, hr_user_and_token, emp_user_token_and_profile):
+    _, hr_token = hr_user_and_token
+    user, emp_token, employee = emp_user_token_and_profile
+
+    hr_headers = {"Authorization": f"Bearer {hr_token}"}
+    emp_headers = {"Authorization": f"Bearer {emp_token}"}
+
+    create_res = client.post(
+        "/projects",
+        json={"name": "Dual ID Mapping Project", "start_date": date.today().isoformat()},
+        headers=hr_headers,
+    )
+    p_id = create_res.json()["id"]
+
+    roles_res = client.get("/project-roles", headers=hr_headers)
+    role_id = roles_res.json()[0]["id"]
+
+    # Assign using user.id instead of employee.id
+    assign_res = client.post(
+        f"/projects/{p_id}/assignments",
+        json={"employee_id": user.id, "project_role_id": role_id},
+        headers=hr_headers,
+    )
+    assert assign_res.status_code == status.HTTP_201_CREATED
+
+    # Employee GET /projects/my-projects should succeed
+    my_projects = client.get("/projects/my-projects", headers=emp_headers)
+    assert my_projects.status_code == status.HTTP_200_OK
+    assigned_prj = next((p for p in my_projects.json() if p["project_id"] == p_id), None)
+    assert assigned_prj is not None
+    assert assigned_prj["name"] == "Dual ID Mapping Project"
+
