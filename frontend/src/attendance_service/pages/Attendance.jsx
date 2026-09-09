@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Check, ArrowLeft, ArrowRight } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import { useAuth } from "../../authentication_service/hooks/useAuth";
 import {
   checkIn,
   checkOut,
@@ -9,8 +10,11 @@ import {
   getTodayAttendance,
 } from "../services/attendanceApi";
 import { showSuccess, showError } from "../../shared/utils/toast";
+import Pagination from "../../shared/components/Pagination";
 
 export default function Attendance() {
+  const { user } = useAuth();
+  const isHR = user?.role === "HR";
   const [todayStatus, setTodayStatus] = useState({
     has_checked_in: false,
     has_checked_out: false,
@@ -21,7 +25,7 @@ export default function Attendance() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [limit] = useState(20);
+  const limit = 15;
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -65,6 +69,18 @@ export default function Attendance() {
   useEffect(() => {
     fetchHistory();
   }, [page, fromDate, toDate, statusFilter]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [fromDate, toDate, statusFilter]);
+
+  // Ensure current page does not exceed totalPages
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleCheckIn = async () => {
     setActionLoading(true);
@@ -158,7 +174,7 @@ export default function Attendance() {
   return (
     <AppLayout title="My Attendance">
       <div style={styles.container}>
-        <BackToDashboard to="/employee/dashboard" role="EMPLOYEE" />
+        <BackToDashboard to={isHR ? "/hr/dashboard" : "/employee/dashboard"} role={isHR ? "HR" : "EMPLOYEE"} />
 
         <div style={styles.header}>
           <h1 style={styles.title}>Attendance Management</h1>
@@ -306,25 +322,13 @@ export default function Attendance() {
               </div>
 
               {/* Pagination */}
-              <div style={styles.paginationRow}>
-                <button
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                  style={{ ...(page <= 1 ? styles.pageBtnDisabled : styles.pageBtn), display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
-                >
-                  <ArrowLeft size={14} /> Previous
-                </button>
-                <span style={styles.pageInfo}>
-                  Page {page} of {totalPages}
-                </span>
-                <button
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                  style={{ ...(page >= totalPages ? styles.pageBtnDisabled : styles.pageBtn), display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
-                >
-                  Next <ArrowRight size={14} />
-                </button>
-              </div>
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={total}
+                onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+              />
             </>
           )}
         </div>

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Plus, Edit2, ArrowLeft, RefreshCw, X, Check, Power, Tags, FileText } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import Pagination from "../../shared/components/Pagination";
 import {
   getAllComplaintCategories,
   createComplaintCategory,
@@ -14,6 +15,23 @@ import { showSuccess, showError } from "../../shared/utils/toast";
 function HRComplaintCategories() {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
+
+  const totalPages = Math.ceil(categories.length / ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (totalPages === 0) {
+      setPage(1);
+    } else if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedCategories = categories.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE
+  );
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -153,7 +171,7 @@ function HRComplaintCategories() {
                   </tr>
                 </thead>
                 <tbody>
-                  {categories.map((c) => (
+                  {paginatedCategories.map((c) => (
                     <tr key={c.id} style={styles.tr}>
                       <td style={styles.td}>
                         <strong style={{ color: "var(--text-primary)" }}>{c.name}</strong>
@@ -204,6 +222,13 @@ function HRComplaintCategories() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={categories.length}
+              onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
           </div>
         )}
 

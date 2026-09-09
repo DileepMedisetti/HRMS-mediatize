@@ -307,7 +307,7 @@ function Login() {
                   <div className="password-label-row">
                     <label htmlFor="otp">6-Digit OTP</label>
                     <span style={{ fontSize: "0.8rem", color: countdown > 0 ? "var(--primary-color, #2563eb)" : "#ef4444", fontWeight: 600 }}>
-                      {countdown > 0 ? `OTP expires in 10 minutes.` : "OTP Expired"}
+                      {countdown > 0 ? `OTP expires in ${formatTime(countdown)}` : "OTP expired"}
                     </span>
                   </div>
 

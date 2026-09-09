@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Search, Eye, Paperclip, FileText, ChevronLeft, ChevronRight, X, ArrowLeft, RefreshCw, Calendar } from "lucide-react";
+import { Search, Eye, Paperclip, FileText, X, ArrowLeft, RefreshCw, Calendar } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import Pagination from "../../shared/components/Pagination";
 import { getAllWorkReports } from "../services/workReportApi";
 import { getEmployees } from "../../employee_service/services/employeeApi";
 import { getProjects } from "../../project_service/services/projectApi";
@@ -50,13 +51,17 @@ function HRWorkReports() {
     loadFilterOptions();
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [selectedEmployeeId, selectedProjectId, selectedDate]);
+
   // Fetch HR Work Reports with pagination & filters
   const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
         page,
-        limit: 10,
+        limit: 15,
         employee_id: selectedEmployeeId || undefined,
         project_id: selectedProjectId || undefined,
         report_date: selectedDate || undefined,
@@ -78,6 +83,12 @@ function HRWorkReports() {
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   // Handle Search Input with debounce
   const handleSearchChange = (e) => {
@@ -307,29 +318,13 @@ function HRWorkReports() {
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div style={styles.paginationRow}>
-                <span style={styles.pageInfo}>
-                  Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({totalItems} total)
-                </span>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button
-                    style={styles.pageBtn}
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    <ChevronLeft size={16} /> Prev
-                  </button>
-                  <button
-                    style={styles.pageBtn}
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    Next <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
           </div>
         )}
 

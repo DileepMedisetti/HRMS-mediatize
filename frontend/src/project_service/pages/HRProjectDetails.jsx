@@ -14,6 +14,7 @@ import {
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import { ConfirmDialog } from "../../shared/components/Modal";
+import Pagination from "../../shared/components/Pagination";
 import {
   getProjectById,
   getProjectTeam,
@@ -32,6 +33,8 @@ export default function HRProjectDetails() {
   const [project, setProject] = useState(null);
   const [team, setTeam] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [removeTarget, setRemoveTarget] = useState(null);
@@ -40,6 +43,18 @@ export default function HRProjectDetails() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [editingProgress, setEditingProgress] = useState(false);
   const [progressVal, setProgressVal] = useState(0);
+
+  const totalPages = Math.ceil(team.length / ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    if (totalPages === 0) {
+      setPage(1);
+    } else if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedTeam = team.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
   const loadProjectData = async () => {
     setLoading(true);
@@ -250,7 +265,7 @@ export default function HRProjectDetails() {
                         </tr>
                       </thead>
                       <tbody>
-                        {team.map((member) => (
+                        {paginatedTeam.map((member) => (
                           <tr key={member.assignment_id} style={styles.tr}>
                             <td style={styles.td}>
                               <div style={styles.empCell}>
@@ -305,7 +320,7 @@ export default function HRProjectDetails() {
 
                   {/* MOBILE CARDS VIEW */}
                   <div className="employee-mobile-cards">
-                    {team.map((member) => (
+                    {paginatedTeam.map((member) => (
                       <div key={member.assignment_id} style={styles.teamCardMobile}>
                         <div style={styles.teamCardMobileHeader}>
                           <div style={styles.empCell}>
@@ -350,6 +365,14 @@ export default function HRProjectDetails() {
                       </div>
                     ))}
                   </div>
+
+                  <Pagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    totalItems={team.length}
+                    onPrevious={() => setPage((p) => Math.max(p - 1, 1))}
+                    onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
+                  />
                 </>
               )}
             </div>

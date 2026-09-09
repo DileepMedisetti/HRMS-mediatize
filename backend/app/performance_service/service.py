@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import logging
 from typing import List, Optional, Tuple
 
@@ -29,8 +29,17 @@ from app.performance_service.models import (
 from app.performance_service.schemas import (
     AttendanceContextSummary,
     CategoryRatingMetric,
+    EmployeeAttendanceAnalyticsSummary,
+    EmployeeCategoryRatingMetric,
+    EmployeeGoalAnalyticsSummary,
+    EmployeeMonthlyReportPoint,
+    EmployeePerformanceAnalyticsResponse,
     EmployeePerformanceSummary,
+    EmployeeProjectAnalyticsSummary,
     EmployeeRatingMetric,
+    EmployeeRatingTrendPoint,
+    EmployeeTaskAnalyticsSummary,
+    EmployeeWorkReportAnalyticsSummary,
     GoalProgressMetric,
     HRPerformanceAnalyticsResponse,
     HRPerformanceDashboardResponse,
@@ -917,4 +926,244 @@ def get_hr_performance_analytics(db: Session) -> HRPerformanceAnalyticsResponse:
         category_ratings=category_ratings,
         review_status_distribution=review_status_distribution,
     )
+
+
+def get_employee_performance_analytics(
+    db: Session,
+    employee_id: int,
+    current_user: User,
+) -> EmployeePerformanceAnalyticsResponse:
+    """
+    Calculate rich, employee-scoped performance analytics for the target employee.
+    Enforces authorization: HR can view any employee's analytics; non-HR can ONLY view their own.
+    """
+    employee = verify_employee_access(db, current_user, employee_id)
+    emp_name = f"{employee.first_name} {employee.last_name}".strip()
+
+    # 1. Performance Reviews & Ratings
+    completed_reviews_stmt = (
+        select(PerformanceReview)
+        .where(
+            PerformanceReview.employee_id == employee_id,
+            PerformanceReview.status == ReviewStatus.COMPLETED,
+            PerformanceReview.overall_rating.is_not(None),
+        )
+        .order_by(PerformanceReview.completed_at.asc(), PerformanceReview.review_end_date.asc())
+    )
+    completed_reviews = db.scalars(completed_reviews_stmt).all()
+
+    completed_reviews_count = len(completed_reviews)
+    ratings_list = [float(r.overall_rating) for r in completed_reviews if r.overall_rating is not None]
+
+    latest_rating = ratings_list[-1] if ratings_list else None
+    average_rating = round(sum(ratings_list) / len(ratings_list), 1) if ratings_list else None
+    highest_rating = round(max(ratings_list), 1) if ratings_list else None
+
+    rating_trend = []
+    for r in completed_reviews:
+        if r.overall_rating is not None:
+            date_str = r.completed_at.strftime("%Y-%m-%d") if r.completed_at else str(r.review_end_date)
+            period_str = r.completed_at.strftime("%b %Y") if r.completed_at else f"Review ({r.review_end_date})"
+            rating_trend.append(
+                EmployeeRatingTrendPoint(
+                    period=period_str,
+                    rating=round(float(r.overall_rating), 1),
+                    review_date=date_str,
+                )
+            )
+
+    # 2. Competency / Category Ratings across completed reviews
+    cat_stmt = (
+        select(
+            PerformanceReviewRating.category,
+            func.avg(PerformanceReviewRating.rating).label("avg_rating"),
+            func.count(PerformanceReviewRating.id).label("total_reviews"),
+        )
+        .join(PerformanceReview, PerformanceReviewRating.review_id == PerformanceReview.id)
+        .where(
+            PerformanceReview.employee_id == employee_id,
+            PerformanceReview.status == ReviewStatus.COMPLETED,
+        )
+        .group_by(PerformanceReviewRating.category)
+        .order_by(func.avg(PerformanceReviewRating.rating).desc())
+    )
+    cat_rows = db.execute(cat_stmt).all()
+    category_ratings = [
+        EmployeeCategoryRatingMetric(
+            category=row.category,
+            average_rating=round(float(row.avg_rating), 1),
+            total_reviews=int(row.total_reviews),
+        )
+        for row in cat_rows
+    ]
+
+    # 3. Goals & KPI Analytics
+    goals_stmt = select(PerformanceGoal).where(PerformanceGoal.employee_id == employee_id)
+    all_goals = db.scalars(goals_stmt).all()
+
+    total_goals = len(all_goals)
+    not_started_goals = sum(1 for g in all_goals if g.status == GoalStatus.NOT_STARTED)
+    in_progress_goals = sum(1 for g in all_goals if g.status == GoalStatus.IN_PROGRESS)
+    completed_goals = sum(1 for g in all_goals if g.status == GoalStatus.COMPLETED)
+    cancelled_goals = sum(1 for g in all_goals if g.status == GoalStatus.CANCELLED)
+
+    goal_completion_rate = (
+        round((completed_goals / total_goals) * 100, 1) if total_goals > 0 else None
+    )
+    avg_goal_progress = (
+        round(sum(g.progress_percentage for g in all_goals) / total_goals, 1)
+        if total_goals > 0
+        else None
+    )
+
+    goal_summary = EmployeeGoalAnalyticsSummary(
+        total_goals=total_goals,
+        not_started=not_started_goals,
+        in_progress=in_progress_goals,
+        completed=completed_goals,
+        cancelled=cancelled_goals,
+        completion_rate=goal_completion_rate,
+        average_progress=avg_goal_progress,
+    )
+
+    # 4. Project Contribution Analytics
+    proj_stmt = (
+        select(Project)
+        .join(ProjectAssignment, ProjectAssignment.project_id == Project.id)
+        .where(ProjectAssignment.employee_id == employee_id)
+    )
+    assigned_projects = db.scalars(proj_stmt).all()
+
+    total_assigned_projects = len(assigned_projects)
+    active_projects_count = sum(1 for p in assigned_projects if p.status in [ProjectStatus.PLANNED, ProjectStatus.IN_PROGRESS])
+    completed_projects_count = sum(1 for p in assigned_projects if p.status == ProjectStatus.COMPLETED)
+    on_hold_projects_count = sum(1 for p in assigned_projects if p.status == ProjectStatus.ON_HOLD)
+
+    avg_project_progress = (
+        round(sum(p.progress_percentage for p in assigned_projects) / total_assigned_projects, 1)
+        if total_assigned_projects > 0
+        else None
+    )
+
+    project_summary = EmployeeProjectAnalyticsSummary(
+        assigned=total_assigned_projects,
+        active=active_projects_count,
+        completed=completed_projects_count,
+        on_hold=on_hold_projects_count,
+        average_progress=avg_project_progress,
+    )
+
+    # 5. Task Analytics (Graceful default metrics)
+    task_summary = EmployeeTaskAnalyticsSummary(
+        assigned=0,
+        completed=0,
+        in_progress=0,
+        pending=0,
+        overdue=0,
+        completion_rate=None,
+    )
+
+    # 6. Work Report Analytics & Monthly Trend
+    reports_stmt = select(DailyWorkReport).where(DailyWorkReport.employee_id == employee_id)
+    all_reports = db.scalars(reports_stmt).all()
+
+    total_reports = len(all_reports)
+
+    today = date.today()
+    first_day_of_month = date(today.year, today.month, 1)
+    start_of_week = today - timedelta(days=today.weekday())
+
+    reports_this_month = sum(1 for r in all_reports if r.report_date >= first_day_of_month)
+    reports_this_week = sum(1 for r in all_reports if r.report_date >= start_of_week)
+
+    projects_reported_count = len(set(r.project_id for r in all_reports if r.project_id is not None))
+
+    monthly_trend_map = {}
+    for r in all_reports:
+        if r.report_date:
+            m_key = r.report_date.strftime("%b %Y")
+            monthly_trend_map[m_key] = monthly_trend_map.get(m_key, 0) + 1
+
+    monthly_trend = [
+        EmployeeMonthlyReportPoint(period=k, count=v)
+        for k, v in monthly_trend_map.items()
+    ]
+
+    work_report_summary = EmployeeWorkReportAnalyticsSummary(
+        total_submitted=total_reports,
+        submitted_this_month=reports_this_month,
+        submitted_this_week=reports_this_week,
+        projects_reported=projects_reported_count,
+        monthly_trend=monthly_trend,
+    )
+
+    # 7. Attendance Analytics Context
+    att_stmt = select(Attendance).where(Attendance.employee_id == employee_id)
+    all_att = db.scalars(att_stmt).all()
+
+    total_working_days = len(all_att)
+    present_days = sum(1 for a in all_att if a.status in [AttendanceStatus.PRESENT, AttendanceStatus.LATE])
+    late_days = sum(1 for a in all_att if a.status == AttendanceStatus.LATE)
+
+    att_rate = (
+        round((present_days / total_working_days) * 100, 1)
+        if total_working_days > 0
+        else None
+    )
+
+    attendance_summary = EmployeeAttendanceAnalyticsSummary(
+        working_days=total_working_days,
+        present_days=present_days,
+        late_days=late_days,
+        half_days=0,
+        absent_days=0,
+        attendance_rate=att_rate,
+    )
+
+    # 8. Leave Analytics Context
+    approved_leave_val = db.scalar(
+        select(func.coalesce(func.sum(LeaveRequest.duration), 0.0)).where(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.status == LeaveStatus.APPROVED,
+        )
+    ) or 0.0
+
+    pending_leave_count = db.scalar(
+        select(func.count(LeaveRequest.id)).where(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.status == LeaveStatus.PENDING,
+        )
+    ) or 0
+
+    rejected_leave_count = db.scalar(
+        select(func.count(LeaveRequest.id)).where(
+            LeaveRequest.employee_id == employee_id,
+            LeaveRequest.status == LeaveStatus.REJECTED,
+        )
+    ) or 0
+
+    leave_summary = LeaveContextSummary(
+        approved_days=float(approved_leave_val),
+        pending_requests=pending_leave_count,
+        rejected_requests=rejected_leave_count,
+    )
+
+    return EmployeePerformanceAnalyticsResponse(
+        employee_id=employee.id,
+        employee_name=emp_name,
+        employee_code=employee.employee_code,
+        latest_rating=latest_rating,
+        average_rating=average_rating,
+        highest_rating=highest_rating,
+        completed_reviews_count=completed_reviews_count,
+        rating_trend=rating_trend,
+        category_ratings=category_ratings,
+        goals=goal_summary,
+        projects=project_summary,
+        tasks=task_summary,
+        work_reports=work_report_summary,
+        attendance=attendance_summary,
+        leave=leave_summary,
+    )
+
 

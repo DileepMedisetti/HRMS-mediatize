@@ -15,6 +15,10 @@ from app.employee_service.models import Employee, EmploymentStatus
 
 
 def _get_active_employee_for_user(db: Session, user: User) -> Employee:
+    if user.role == UserRole.HR:
+        from app.authentication_service.service import ensure_hr_employee
+        ensure_hr_employee(db, user)
+
     statement = select(Employee).where(
         Employee.user_id == user.id,
         Employee.deleted_at.is_(None),

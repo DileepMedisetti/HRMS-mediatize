@@ -237,3 +237,93 @@ class HRPerformanceAnalyticsResponse(BaseModel):
     category_ratings: List[CategoryRatingMetric]
     review_status_distribution: List[ReviewStatusMetric]
 
+
+# ============================================================
+# Employee Analytics Schemas
+# ============================================================
+
+class EmployeeRatingTrendPoint(BaseModel):
+    period: str
+    rating: float
+    review_date: str
+
+
+class EmployeeCategoryRatingMetric(BaseModel):
+    category: str
+    average_rating: float
+    total_reviews: int
+
+
+class EmployeeGoalAnalyticsSummary(BaseModel):
+    total_goals: int = 0
+    not_started: int = 0
+    in_progress: int = 0
+    completed: int = 0
+    cancelled: int = 0
+    completion_rate: Optional[float] = None
+    average_progress: Optional[float] = None
+
+
+class EmployeeProjectAnalyticsSummary(BaseModel):
+    assigned: int = 0
+    active: int = 0
+    completed: int = 0
+    on_hold: int = 0
+    average_progress: Optional[float] = None
+
+
+class EmployeeTaskAnalyticsSummary(BaseModel):
+    assigned: int = 0
+    completed: int = 0
+    in_progress: int = 0
+    pending: int = 0
+    overdue: int = 0
+    completion_rate: Optional[float] = None
+
+
+class EmployeeMonthlyReportPoint(BaseModel):
+    period: str
+    count: int
+
+
+class EmployeeWorkReportAnalyticsSummary(BaseModel):
+    total_submitted: int = 0
+    submitted_this_month: int = 0
+    submitted_this_week: int = 0
+    projects_reported: int = 0
+    monthly_trend: List[EmployeeMonthlyReportPoint] = []
+
+
+class EmployeeAttendanceAnalyticsSummary(BaseModel):
+    working_days: int = 0
+    present_days: int = 0
+    late_days: int = 0
+    half_days: int = 0
+    absent_days: int = 0
+    attendance_rate: Optional[float] = None
+
+
+class EmployeeLeaveAnalyticsSummary(BaseModel):
+    approved_days: float = 0.0
+    pending_requests: int = 0
+    rejected_requests: int = 0
+
+
+class EmployeePerformanceAnalyticsResponse(BaseModel):
+    employee_id: int
+    employee_name: str
+    employee_code: str
+    latest_rating: Optional[float] = None
+    average_rating: Optional[float] = None
+    highest_rating: Optional[float] = None
+    completed_reviews_count: int = 0
+    rating_trend: List[EmployeeRatingTrendPoint] = []
+    category_ratings: List[EmployeeCategoryRatingMetric] = []
+    goals: EmployeeGoalAnalyticsSummary = Field(default_factory=EmployeeGoalAnalyticsSummary)
+    projects: EmployeeProjectAnalyticsSummary = Field(default_factory=EmployeeProjectAnalyticsSummary)
+    tasks: EmployeeTaskAnalyticsSummary = Field(default_factory=EmployeeTaskAnalyticsSummary)
+    work_reports: EmployeeWorkReportAnalyticsSummary = Field(default_factory=EmployeeWorkReportAnalyticsSummary)
+    attendance: EmployeeAttendanceAnalyticsSummary = Field(default_factory=EmployeeAttendanceAnalyticsSummary)
+    leave: LeaveContextSummary = Field(default_factory=LeaveContextSummary)
+
+

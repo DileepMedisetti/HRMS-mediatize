@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Eye, Paperclip, FileText, ChevronLeft, ChevronRight, X, ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { Plus, Eye, Paperclip, FileText, X, ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import Pagination from "../../shared/components/Pagination";
 import { getMyComplaints, getActiveComplaintCategories } from "../services/complaintApi";
 import { showError } from "../../shared/utils/toast";
 
@@ -34,13 +35,17 @@ function MyComplaints() {
     loadCategories();
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [selectedStatus, selectedCategoryId]);
+
   // Fetch employee's complaints
   const fetchComplaints = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
         page,
-        limit: 10,
+        limit: 15,
         status: selectedStatus || undefined,
         category_id: selectedCategoryId || undefined,
       };
@@ -59,6 +64,12 @@ function MyComplaints() {
   useEffect(() => {
     fetchComplaints();
   }, [fetchComplaints]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   // Helper badge color functions
   const getStatusBadge = (status) => {
@@ -277,29 +288,13 @@ function MyComplaints() {
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div style={styles.paginationRow}>
-                <span style={styles.pageInfo}>
-                  Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({totalItems} total)
-                </span>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button
-                    style={styles.pageBtn}
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    <ChevronLeft size={16} /> Prev
-                  </button>
-                  <button
-                    style={styles.pageBtn}
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    Next <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
           </div>
         )}
 

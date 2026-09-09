@@ -137,6 +137,14 @@ function App() {
               element={<HRAttendance />}
             />
             <Route
+              path="/hr/my-attendance"
+              element={<Attendance />}
+            />
+            <Route
+              path="/hr/attendance/my"
+              element={<Attendance />}
+            />
+            <Route
               path="/hr/leaves"
               element={<HRLeave />}
             />

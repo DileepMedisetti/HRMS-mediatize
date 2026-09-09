@@ -5,6 +5,7 @@ import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import { getAllLeaves, approveLeave, rejectLeave, revokeLeave } from "../services/leaveApi";
 import { showSuccess, showError, showWarning } from "../../shared/utils/toast";
+import Pagination from "../../shared/components/Pagination";
 
 function getStatusBadge(status) {
   switch (status) {
@@ -27,6 +28,8 @@ function HRLeave() {
   const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 15;
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [actionType, setActionType] = useState(""); // "APPROVE", "REJECT", "REVOKE"
   const [hrRemarks, setHrRemarks] = useState("");
@@ -38,11 +41,12 @@ function HRLeave() {
     try {
       const res = await getAllLeaves({
         page,
-        limit: 20,
+        limit,
         status: statusFilter || undefined,
       });
       setLeaves(res.data?.items || []);
-      setTotalPages(res.data?.pages || 1);
+      setTotalPages(res.data?.pages || res.data?.total_pages || 1);
+      setTotalItems(res.data?.total || 0);
     } catch (err) {
       console.error("Failed to fetch leave requests", err);
     } finally {
@@ -53,6 +57,18 @@ function HRLeave() {
   useEffect(() => {
     fetchLeaves();
   }, [fetchLeaves]);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
+  // Ensure current page does not exceed totalPages
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleActionSubmit = async (e) => {
     e.preventDefault();
@@ -136,7 +152,8 @@ function HRLeave() {
         ) : leaves.length === 0 ? (
           <div style={styles.emptyState}>No leave requests found.</div>
         ) : (
-          <div style={styles.tableWrapper}>
+          <>
+            <div style={styles.tableWrapper}>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -233,6 +250,14 @@ function HRLeave() {
               </tbody>
             </table>
           </div>
+          <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
+          </>
         )}
 
         {/* Review / Revoke Modal */}

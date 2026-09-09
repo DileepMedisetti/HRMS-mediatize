@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, Filter, SlidersHorizontal, ArrowLeft, ArrowRight, Eye, Edit } from "lucide-react";
+import { Plus, Search, Filter, SlidersHorizontal, Eye, Edit } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import Pagination from "../../shared/components/Pagination";
 import { getProjects } from "../services/projectApi";
 import { ProjectStatusBadge, ProjectPriorityBadge, ProjectProgress } from "../components/ProjectBadges";
 import { showError } from "../../shared/utils/toast";
@@ -25,7 +26,7 @@ export default function HRProjectList() {
     try {
       const params = {
         page,
-        limit: 10,
+        limit: 15,
         ...(search.trim() && { search: search.trim() }),
         ...(statusFilter && { status: statusFilter }),
         ...(priorityFilter && { priority: priorityFilter }),
@@ -40,6 +41,16 @@ export default function HRProjectList() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, priorityFilter]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   useEffect(() => {
     fetchProjects();
@@ -238,27 +249,13 @@ export default function HRProjectList() {
         )}
 
         {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div style={styles.pagination}>
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              style={page === 1 ? styles.pageBtnDisabled : styles.pageBtn}
-            >
-              <ArrowLeft size={14} /> Previous
-            </button>
-            <span style={styles.pageInfo}>
-              Page {page} of {totalPages}
-            </span>
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              style={page === totalPages ? styles.pageBtnDisabled : styles.pageBtn}
-            >
-              Next <ArrowRight size={14} />
-            </button>
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPrevious={() => setPage((p) => Math.max(p - 1, 1))}
+          onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
+        />
       </div>
     </AppLayout>
   );

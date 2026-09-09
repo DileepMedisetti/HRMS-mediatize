@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import { ConfirmDialog } from "../../shared/components/Modal";
+import Pagination from "../../shared/components/Pagination";
 import {
   getEmployees,
   activateEmployee,
@@ -29,7 +30,7 @@ export default function EmployeeList() {
     try {
       const params = {
         page,
-        limit: 10,
+        limit: 15,
         ...(search && { search }),
         ...(statusFilter && { employment_status: statusFilter }),
       };
@@ -47,6 +48,18 @@ export default function EmployeeList() {
   useEffect(() => {
     fetchEmployees();
   }, [page, statusFilter]);
+
+  // Reset to page 1 on status filter change
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
+
+  // Ensure current page does not exceed totalPages
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -334,27 +347,13 @@ export default function EmployeeList() {
         )}
 
         {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div style={styles.pagination}>
-            <button
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(p - 1, 1))}
-              style={page === 1 ? styles.pageBtnDisabled : styles.pageBtn}
-            >
-              &laquo; Previous
-            </button>
-            <span style={styles.pageInfo}>
-              Page {page} of {totalPages}
-            </span>
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
-              style={page === totalPages ? styles.pageBtnDisabled : styles.pageBtn}
-            >
-              Next &raquo;
-            </button>
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPrevious={() => setPage((p) => Math.max(p - 1, 1))}
+          onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
+        />
 
         <ConfirmDialog
           isOpen={Boolean(archiveEmpTarget)}

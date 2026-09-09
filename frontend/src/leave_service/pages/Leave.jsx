@@ -3,6 +3,7 @@ import { CalendarDays, X, Plus } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import { ConfirmDialog } from "../../shared/components/Modal";
+import Pagination from "../../shared/components/Pagination";
 import { getLeaveTypes, getMyLeaveBalance, getMyLeaves, applyLeave, cancelLeave } from "../services/leaveApi";
 import { showSuccess, showError, showWarning } from "../../shared/utils/toast";
 
@@ -26,6 +27,10 @@ function Leave() {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const limit = 15;
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cancelTargetId, setCancelTargetId] = useState(null);
@@ -55,7 +60,7 @@ function Leave() {
       const [typesRes, balanceRes, leavesRes] = await Promise.allSettled([
         getLeaveTypes(),
         getMyLeaveBalance(),
-        getMyLeaves({ page: 1, limit: 20 }),
+        getMyLeaves({ page, limit }),
       ]);
 
       if (typesRes.status === "fulfilled") {
@@ -65,18 +70,28 @@ function Leave() {
         setBalances(balanceRes.value?.data || []);
       }
       if (leavesRes.status === "fulfilled") {
-        setLeaveRequests(leavesRes.value?.data?.items || []);
+        const leaveData = leavesRes.value?.data;
+        setLeaveRequests(leaveData?.items || []);
+        setTotalPages(leaveData?.total_pages || leaveData?.pages || 1);
+        setTotalItems(leaveData?.total || 0);
       }
     } catch (err) {
       console.error("Failed to fetch leave data", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Ensure current page does not exceed totalPages
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleDurationChange = (mode) => {
     setLeaveDuration(mode);
@@ -268,7 +283,8 @@ function Leave() {
             No leave requests submitted yet.
           </div>
         ) : (
-          <div style={styles.tableWrapper}>
+          <>
+            <div style={styles.tableWrapper}>
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -323,6 +339,14 @@ function Leave() {
               </tbody>
             </table>
           </div>
+          <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
+          </>
         )}
 
         {/* Apply Leave Modal */}

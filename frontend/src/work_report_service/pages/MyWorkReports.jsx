@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Eye, Paperclip, FileText, ChevronLeft, ChevronRight, X, ArrowLeft, RefreshCw } from "lucide-react";
+import { Plus, Eye, Paperclip, FileText, X, ArrowLeft, RefreshCw } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import Pagination from "../../shared/components/Pagination";
 import { getMyWorkReports, getMyAssignedProjects } from "../services/workReportApi";
 import { showError } from "../../shared/utils/toast";
 
@@ -33,13 +34,17 @@ function MyWorkReports() {
     loadProjects();
   }, []);
 
+  useEffect(() => {
+    setPage(1);
+  }, [selectedProjectId]);
+
   // Fetch employee's work reports
   const fetchReports = useCallback(async () => {
     setLoading(true);
     try {
       const params = {
         page,
-        limit: 10,
+        limit: 15,
         project_id: selectedProjectId || undefined,
       };
       const res = await getMyWorkReports(params);
@@ -57,6 +62,12 @@ function MyWorkReports() {
   useEffect(() => {
     fetchReports();
   }, [fetchReports]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   return (
     <AppLayout title="My Work Reports">
@@ -227,29 +238,13 @@ function MyWorkReports() {
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div style={styles.paginationRow}>
-                <span style={styles.pageInfo}>
-                  Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({totalItems} total)
-                </span>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button
-                    style={styles.pageBtn}
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    <ChevronLeft size={16} /> Prev
-                  </button>
-                  <button
-                    style={styles.pageBtn}
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    Next <ChevronRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
           </div>
         )}
 

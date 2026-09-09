@@ -1,5 +1,23 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
+import {
+  Pencil,
+  Camera,
+  Trash2,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Building2,
+  Briefcase,
+  User,
+  BadgeCheck,
+  CheckCircle2,
+  ShieldCheck,
+  Sparkles,
+  Heart,
+  Clock,
+} from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import {
@@ -8,6 +26,7 @@ import {
   uploadProfilePhoto,
   deleteProfilePhoto,
 } from "../services/employeeApi";
+import "./MyProfile.css";
 
 export default function MyProfile() {
   const [profile, setProfile] = useState(null);
@@ -85,10 +104,66 @@ export default function MyProfile() {
     }
   };
 
+  const getFullName = () => {
+    if (!profile) return "Employee Profile";
+    const fn = (profile.first_name || "").trim();
+    const ln = (profile.last_name || "").trim();
+    return [fn, ln].filter(Boolean).join(" ") || "Employee";
+  };
+
+  const getInitials = () => {
+    if (!profile) return "EP";
+    const fn = (profile.first_name || "").trim();
+    const ln = (profile.last_name || "").trim();
+    if (fn && ln) {
+      return `${fn.charAt(0)}${ln.charAt(0)}`.toUpperCase();
+    }
+    if (fn) return fn.slice(0, 2).toUpperCase();
+    if (ln) return ln.slice(0, 2).toUpperCase();
+    return "EP";
+  };
+
+  const renderStatusBadge = (status = "ACTIVE") => {
+    const normalized = (status || "ACTIVE").toUpperCase();
+    let colorClass = "status-badge-active";
+    let label = normalized;
+
+    if (normalized === "ACTIVE") {
+      colorClass = "status-badge-active";
+    } else if (normalized === "INACTIVE") {
+      colorClass = "status-badge-inactive";
+    } else if (normalized === "ON_NOTICE") {
+      colorClass = "status-badge-notice";
+    } else if (normalized === "TERMINATED") {
+      colorClass = "status-badge-terminated";
+    }
+
+    return (
+      <span className={`profile-status-badge ${colorClass}`}>
+        <span className="status-dot">●</span>
+        <span>{label}</span>
+      </span>
+    );
+  };
+
   if (loading) {
     return (
       <AppLayout title="My Employee Profile">
-        <div style={styles.loading}>Loading your profile...</div>
+        <div className="profile-page-wrapper">
+          <BackToDashboard to="/employee/dashboard" role="EMPLOYEE" />
+          <div className="profile-skeleton-wrapper">
+            <div className="skeleton-hero-card profile-shimmer"></div>
+            <div className="skeleton-stats-grid">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="skeleton-stat-box profile-shimmer"></div>
+              ))}
+            </div>
+            <div className="skeleton-info-grid">
+              <div className="skeleton-info-box profile-shimmer"></div>
+              <div className="skeleton-info-box profile-shimmer"></div>
+            </div>
+          </div>
+        </div>
       </AppLayout>
     );
   }
@@ -97,378 +172,325 @@ export default function MyProfile() {
 
   return (
     <AppLayout title="My Employee Profile">
-      <div style={styles.container}>
+      <div className="profile-page-wrapper">
         <BackToDashboard to="/employee/dashboard" role="EMPLOYEE" />
-        <div style={styles.card}>
-          {/* Profile Avatar Header */}
-          <div style={styles.header}>
-            <div style={styles.avatarSection}>
-              <div style={styles.avatarContainer}>
+
+        {/* HERO CARD */}
+        <div className="profile-hero-card">
+          <div className="profile-cover-banner"></div>
+
+          <div className="profile-hero-body">
+            <div className="profile-hero-top-bar">
+              <div className="profile-avatar-wrapper">
                 {profile.profile_photo_url ? (
                   <img
                     src={profile.profile_photo_url}
-                    alt={profile.first_name}
-                    style={styles.avatarImg}
+                    alt={getFullName()}
+                    className="profile-avatar-img"
                   />
                 ) : (
-                  <div style={styles.avatarPlaceholder}>
-                    {profile.first_name?.[0]}
-                    {profile.last_name?.[0]}
+                  <div className="profile-avatar-initials">
+                    {getInitials()}
                   </div>
+                )}
+
+                {/* Upload Camera Overlay in Edit Mode */}
+                {editing && (
+                  <label
+                    className="profile-avatar-upload-overlay"
+                    title={uploadingPhoto ? "Uploading..." : "Upload Profile Photo"}
+                  >
+                    <Camera size={16} />
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/jpg, image/webp"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                      style={{ display: "none" }}
+                    />
+                  </label>
                 )}
               </div>
 
-              <div style={styles.photoControls}>
-                <label style={uploadingPhoto ? styles.uploadBtnDisabled : styles.uploadBtn}>
-                  {uploadingPhoto ? "Uploading..." : "Change Photo"}
-                  <input
-                    type="file"
-                    accept="image/png, image/jpeg, image/jpg, image/webp"
-                    onChange={handlePhotoUpload}
-                    disabled={uploadingPhoto}
-                    style={{ display: "none" }}
-                  />
-                </label>
-
-                {profile.profile_photo_url && (
-                  <button onClick={handleRemovePhoto} style={styles.removePhotoBtn}>
-                    Remove Photo
+              <div className="profile-hero-actions">
+                {!editing ? (
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="btn-profile-primary"
+                    aria-label="Edit Profile Details"
+                  >
+                    <Pencil size={15} />
+                    <span>Edit Profile</span>
                   </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => setEditing(false)}
+                      className="btn-profile-secondary"
+                    >
+                      Cancel
+                    </button>
+                    {profile.profile_photo_url && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="btn-profile-photo-remove"
+                      >
+                        <Trash2 size={13} />
+                        <span>Remove Photo</span>
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
 
-            <div>
-              <h2 style={styles.name}>{profile.first_name} {profile.last_name}</h2>
-              <div style={styles.subMeta}>
-                <span style={styles.codeBadge}>{profile.employee_code}</span>
-                <span style={styles.statusBadge}>{profile.employment_status}</span>
+            <div className="profile-hero-identity">
+              <h1 className="profile-hero-name">{getFullName()}</h1>
+              <div className="profile-meta-badges">
+                <span className="profile-role-pill role-pill-employee">
+                  <User size={13} />
+                  <span>EMPLOYEE</span>
+                </span>
+                <span className="profile-code-tag">
+                  <BadgeCheck size={13} />
+                  <span>{profile.employee_code || "EMP001"}</span>
+                </span>
+                {renderStatusBadge(profile.employment_status || "ACTIVE")}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Info or Edit Form */}
-          {!editing ? (
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionTitle}>Personal & Contact Information</h3>
-                <button onClick={() => setEditing(true)} style={styles.editBtn}>
-                  Edit Contact Details
-                </button>
+        {!editing ? (
+          <>
+            {/* QUICK INFO STATS CARDS */}
+            <div className="profile-stats-grid">
+              <div className="profile-stat-card">
+                <div className="stat-icon-wrapper">
+                  <BadgeCheck size={20} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-label">Employee Code</span>
+                  <span className="stat-value">{profile.employee_code || "N/A"}</span>
+                </div>
               </div>
 
-              <div style={styles.grid}>
-                <div style={styles.fieldItem}>
-                  <span style={styles.fieldLabel}>Email Address</span>
-                  <span style={styles.fieldValue}>{profile.email}</span>
+              <div className="profile-stat-card">
+                <div className="stat-icon-wrapper">
+                  <Calendar size={20} />
                 </div>
-                <div style={styles.fieldItem}>
-                  <span style={styles.fieldLabel}>Phone Number</span>
-                  <span style={styles.fieldValue}>{profile.phone || "Not Provided"}</span>
+                <div className="stat-content">
+                  <span className="stat-label">Joining Date</span>
+                  <span className="stat-value">
+                    {profile.joining_date ? profile.joining_date : "Not Provided"}
+                  </span>
                 </div>
-                <div style={styles.fieldItem}>
-                  <span style={styles.fieldLabel}>Date of Birth</span>
-                  <span style={styles.fieldValue}>{profile.date_of_birth || "Not Provided"}</span>
+              </div>
+
+              <div className="profile-stat-card">
+                <div className="stat-icon-wrapper">
+                  <CheckCircle2 size={20} />
                 </div>
-                <div style={styles.fieldItem}>
-                  <span style={styles.fieldLabel}>Joining Date</span>
-                  <span style={styles.fieldValue}>{profile.joining_date || "Not Provided"}</span>
+                <div className="stat-content">
+                  <span className="stat-label">Employment Status</span>
+                  <span className="stat-value">{profile.employment_status || "ACTIVE"}</span>
                 </div>
-                <div style={styles.fieldItemFull}>
-                  <span style={styles.fieldLabel}>Residential Address</span>
-                  <span style={styles.fieldValue}>{profile.address || "Not Provided"}</span>
+              </div>
+
+              <div className="profile-stat-card">
+                <div className="stat-icon-wrapper">
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-label">System Role</span>
+                  <span className="stat-value">EMPLOYEE</span>
                 </div>
               </div>
             </div>
-          ) : (
-            <form onSubmit={handleUpdateSelf} style={styles.form}>
-              <h3 style={styles.sectionTitle}>Update Your Contact Info</h3>
-              
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Phone Number</label>
+
+            {/* TWO-COLUMN DETAILED INFO GRID */}
+            <div className="profile-info-grid">
+              {/* Card 1: Contact Information */}
+              <div className="profile-info-card">
+                <div className="info-card-header">
+                  <h3 className="info-card-title">
+                    <Mail size={18} className="info-card-title-icon" />
+                    <span>Contact Information</span>
+                  </h3>
+                </div>
+                <div className="info-card-fields">
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <Mail size={13} className="info-field-icon" />
+                      <span>Email Address</span>
+                    </span>
+                    <span className="info-field-value">{profile.email}</span>
+                  </div>
+
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <Phone size={13} className="info-field-icon" />
+                      <span>Phone Number</span>
+                    </span>
+                    <span className="info-field-value">
+                      {profile.phone ? (
+                        profile.phone
+                      ) : (
+                        <span className="info-field-empty">Not Provided</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <MapPin size={13} className="info-field-icon" />
+                      <span>Residential Address</span>
+                    </span>
+                    <span className="info-field-value">
+                      {profile.address ? (
+                        profile.address
+                      ) : (
+                        <span className="info-field-empty">Not Provided</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Personal & Employment Information */}
+              <div className="profile-info-card">
+                <div className="info-card-header">
+                  <h3 className="info-card-title">
+                    <User size={18} className="info-card-title-icon" />
+                    <span>Personal & Employment Info</span>
+                  </h3>
+                </div>
+                <div className="info-card-fields">
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <Calendar size={13} className="info-field-icon" />
+                      <span>Date of Birth</span>
+                    </span>
+                    <span className="info-field-value">
+                      {profile.date_of_birth ? (
+                        profile.date_of_birth
+                      ) : (
+                        <span className="info-field-empty">Not Provided</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <Calendar size={13} className="info-field-icon" />
+                      <span>Joining Date</span>
+                    </span>
+                    <span className="info-field-value">
+                      {profile.joining_date ? (
+                        profile.joining_date
+                      ) : (
+                        <span className="info-field-empty">Not Provided</span>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <CheckCircle2 size={13} className="info-field-icon" />
+                      <span>Employment Status</span>
+                    </span>
+                    <div style={{ marginTop: "0.15rem" }}>
+                      {renderStatusBadge(profile.employment_status || "ACTIVE")}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* EDIT PROFILE FORM CARD */
+          <div className="profile-edit-card">
+            <h2 className="profile-form-title">
+              <Pencil size={18} style={{ color: "var(--primary-color)" }} />
+              <span>Update Contact Information</span>
+            </h2>
+
+            <form onSubmit={handleUpdateSelf}>
+              <div className="profile-form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="profile-form-label">
+                  <Phone size={14} />
+                  <span>Phone Number</span>
+                </label>
                 <input
                   type="text"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  style={styles.input}
-                  placeholder="+91 9876543210"
+                  className="profile-form-input"
+                  placeholder="+91 98765 43210"
                 />
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Residential Address</label>
+              <div className="profile-form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="profile-form-label">
+                  <MapPin size={14} />
+                  <span>Residential Address</span>
+                </label>
                 <textarea
-                  rows="3"
+                  rows={3}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  style={styles.textarea}
-                  placeholder="Enter your updated address"
+                  className="profile-form-textarea"
+                  placeholder="Enter your current residential address"
                 />
               </div>
 
-              <div style={styles.buttonGroup}>
+              <div className="profile-form-grid-2" style={{ opacity: 0.85 }}>
+                <div className="profile-form-group">
+                  <label className="profile-form-label">
+                    <span>Email Address (Read Only)</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={profile.email}
+                    disabled
+                    className="profile-form-input profile-form-input-disabled"
+                  />
+                </div>
+
+                <div className="profile-form-group">
+                  <label className="profile-form-label">
+                    <span>Employee Code (Read Only)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={profile.employee_code || "EMP001"}
+                    disabled
+                    className="profile-form-input profile-form-input-disabled"
+                  />
+                </div>
+              </div>
+
+              <div className="profile-form-actions">
                 <button
                   type="button"
                   onClick={() => setEditing(false)}
-                  style={styles.cancelBtn}
+                  className="btn-profile-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  style={saving ? styles.submitBtnDisabled : styles.submitBtn}
+                  className="btn-profile-primary"
                 >
-                  {saving ? "Saving..." : "Save Changes"}
+                  {saving ? "Saving Changes..." : "Save Changes"}
                 </button>
               </div>
             </form>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
 }
-
-const styles = {
-  container: {
-    padding: "0 0 2rem 0",
-    maxWidth: "800px",
-  },
-  card: {
-    backgroundColor: "var(--bg-surface)",
-    borderRadius: "var(--radius-lg)",
-    padding: "2rem",
-    border: "1px solid var(--border-color)",
-    color: "var(--text-primary)",
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "1.5rem",
-    marginBottom: "2rem",
-    borderBottom: "1px solid var(--border-color)",
-    paddingBottom: "1.5rem",
-  },
-  avatarSection: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "0.75rem",
-  },
-  avatarContainer: {
-    width: "96px",
-    height: "96px",
-    borderRadius: "50%",
-    overflow: "hidden",
-    border: "3px solid var(--primary-color)",
-  },
-  avatarImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-  avatarPlaceholder: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "var(--primary-color)",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "2rem",
-    fontWeight: "700",
-  },
-  photoControls: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "0.5rem",
-  },
-  uploadBtn: {
-    backgroundColor: "var(--primary-color)",
-    color: "var(--text-on-primary)",
-    padding: "0.25rem 0.625rem",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "0.75rem",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-  uploadBtnDisabled: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--text-muted)",
-    padding: "0.25rem 0.625rem",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "0.75rem",
-    cursor: "not-allowed",
-  },
-  removePhotoBtn: {
-    backgroundColor: "var(--danger-color)",
-    color: "#ffffff",
-    border: "none",
-    padding: "0.25rem 0.625rem",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "0.75rem",
-    cursor: "pointer",
-  },
-  name: {
-    fontSize: "1.75rem",
-    fontWeight: "700",
-    color: "var(--text-primary)",
-    margin: 0,
-  },
-  subMeta: {
-    display: "flex",
-    gap: "0.5rem",
-    marginTop: "0.375rem",
-  },
-  codeBadge: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--primary-color)",
-    padding: "0.2rem 0.5rem",
-    borderRadius: "var(--radius-sm)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.875rem",
-  },
-  statusBadge: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--text-secondary)",
-    border: "1px solid var(--border-color)",
-    padding: "0.2rem 0.5rem",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "0.75rem",
-    fontWeight: "600",
-  },
-  section: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "1rem",
-  },
-  sectionHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "0.75rem",
-  },
-  sectionTitle: {
-    fontSize: "1.125rem",
-    fontWeight: "600",
-    color: "var(--text-secondary)",
-    margin: 0,
-  },
-  editBtn: {
-    backgroundColor: "var(--primary-color)",
-    color: "var(--text-on-primary)",
-    border: "none",
-    padding: "0.375rem 0.875rem",
-    borderRadius: "var(--radius-md)",
-    fontSize: "0.875rem",
-    cursor: "pointer",
-    fontWeight: "500",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
-    gap: "1.5rem",
-    backgroundColor: "var(--bg-surface-elevated)",
-    padding: "1.5rem",
-    borderRadius: "var(--radius-md)",
-    border: "1px solid var(--border-color)",
-  },
-  fieldItem: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.25rem",
-  },
-  fieldItemFull: {
-    gridColumn: "1 / -1",
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.25rem",
-  },
-  fieldLabel: {
-    fontSize: "0.75rem",
-    textTransform: "uppercase",
-    color: "var(--text-muted)",
-    letterSpacing: "0.05em",
-    fontWeight: "600",
-  },
-  fieldValue: {
-    fontSize: "1rem",
-    color: "var(--text-primary)",
-    fontWeight: "500",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "1.25rem",
-    backgroundColor: "var(--bg-surface-elevated)",
-    padding: "1.5rem",
-    borderRadius: "var(--radius-md)",
-    border: "1px solid var(--border-color)",
-  },
-  formGroup: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.375rem",
-  },
-  label: {
-    fontSize: "0.875rem",
-    color: "var(--text-secondary)",
-    fontWeight: "500",
-  },
-  input: {
-    backgroundColor: "var(--bg-surface)",
-    border: "1px solid var(--border-color)",
-    color: "var(--text-primary)",
-    padding: "0.625rem 0.875rem",
-    borderRadius: "var(--radius-md)",
-    fontSize: "0.875rem",
-  },
-  textarea: {
-    backgroundColor: "var(--bg-surface)",
-    border: "1px solid var(--border-color)",
-    color: "var(--text-primary)",
-    padding: "0.625rem 0.875rem",
-    borderRadius: "var(--radius-md)",
-    fontSize: "0.875rem",
-    resize: "vertical",
-  },
-  buttonGroup: {
-    display: "flex",
-    justifyContent: "flex-end",
-    flexWrap: "wrap",
-    gap: "0.75rem",
-  },
-  cancelBtn: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border-color)",
-    padding: "0.5rem 1rem",
-    borderRadius: "var(--radius-md)",
-    cursor: "pointer",
-  },
-  submitBtn: {
-    backgroundColor: "var(--primary-color)",
-    color: "var(--text-on-primary)",
-    border: "none",
-    padding: "0.5rem 1rem",
-    borderRadius: "var(--radius-md)",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
-  submitBtnDisabled: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--text-muted)",
-    border: "1px solid var(--border-color)",
-    padding: "0.5rem 1rem",
-    borderRadius: "var(--radius-md)",
-    cursor: "not-allowed",
-  },
-  loading: {
-    textAlign: "center",
-    padding: "3rem",
-    color: "var(--text-muted)",
-  },
-};

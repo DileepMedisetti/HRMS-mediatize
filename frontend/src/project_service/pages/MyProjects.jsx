@@ -18,6 +18,7 @@ import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import Modal from "../../shared/components/Modal";
 import Button from "../../shared/components/Button";
+import Pagination from "../../shared/components/Pagination";
 import {
   ProjectStatusBadge,
   ProjectPriorityBadge,
@@ -30,6 +31,8 @@ export default function MyProjects() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
 
   // Selected project detail modal state
   const [selectedProject, setSelectedProject] = useState(null);
@@ -96,6 +99,25 @@ export default function MyProjects() {
     if (statusFilter === "ALL") return matchesSearch;
     return matchesSearch && p.status === statusFilter;
   });
+
+  const totalPages = Math.ceil(filteredProjects.length / ITEMS_PER_PAGE);
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    if (totalPages === 0) {
+      setPage(1);
+    } else if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
+  const paginatedProjects = filteredProjects.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE
+  );
 
   return (
     <AppLayout>
@@ -210,7 +232,7 @@ export default function MyProjects() {
               minWidth: 0,
             }}
           >
-            {filteredProjects.map((p) => (
+            {paginatedProjects.map((p) => (
               <div
                 key={p.project_id}
                 className="hrms-card"
@@ -377,6 +399,16 @@ export default function MyProjects() {
               </div>
             ))}
           </div>
+        )}
+
+        {!loading && filteredProjects.length > 0 && (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={filteredProjects.length}
+            onPrevious={() => setPage((p) => Math.max(p - 1, 1))}
+            onNext={() => setPage((p) => Math.min(p + 1, totalPages))}
+          />
         )}
       </div>
 

@@ -518,6 +518,16 @@ body {
   justify-content: flex-end;
   gap: 0.75rem;
   flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 480px) {
+  .hrms-modal-footer {
+    flex-direction: column-reverse;
+  }
+  .hrms-modal-footer > * {
+    width: 100%;
+  }
 }
 
 /* Animations */

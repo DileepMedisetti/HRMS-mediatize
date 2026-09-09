@@ -33,6 +33,7 @@ performanceApi.interceptors.response.use(
 
 // Employee Performance APIs
 export const getMyPerformanceSummary = () => performanceApi.get("/performance/my/summary");
+export const getMyPerformanceAnalytics = () => performanceApi.get("/performance/my/analytics");
 export const getMyPerformanceReviews = (params) => performanceApi.get("/performance/my/reviews", { params });
 export const getMyPerformanceReviewDetails = (id) => performanceApi.get(`/performance/my/reviews/${id}`);
 export const getMyGoals = (params) => performanceApi.get("/performance/my/goals", { params });
@@ -42,6 +43,7 @@ export const updateMyGoalStatus = (id, data) => performanceApi.patch(`/performan
 export const getHRPerformanceDashboard = () => performanceApi.get("/performance/dashboard");
 export const getHRPerformanceAnalytics = () => performanceApi.get("/performance/analytics");
 export const getEmployeePerformanceDetails = (employeeId) => performanceApi.get(`/performance/employees/${employeeId}`);
+export const getEmployeePerformanceAnalytics = (employeeId) => performanceApi.get(`/performance/employees/${employeeId}/analytics`);
 export const getAllPerformanceReviews = (params) => performanceApi.get("/performance/reviews", { params });
 export const createPerformanceReview = (data) => performanceApi.post("/performance/reviews", data);
 export const getPerformanceReviewDetails = (id) => performanceApi.get(`/performance/reviews/${id}`);

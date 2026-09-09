@@ -1,4 +1,5 @@
 from datetime import date
+from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -302,4 +303,103 @@ def test_hr_performance_analytics(db_session, test_performance_setup):
     assert "goal_status_distribution" in data
     assert "category_ratings" in data
     assert "review_status_distribution" in data
+
+
+def test_employee_can_get_own_performance_analytics(db_session, test_performance_setup):
+    client = TestClient(app)
+    setup = test_performance_setup
+
+    res = client.get("/performance/my/analytics", headers=setup["emp1_headers"])
+    assert res.status_code == 200
+    data = res.json()
+    assert data["employee_id"] == setup["emp1_id"]
+    assert "rating_trend" in data
+    assert "category_ratings" in data
+    assert "goals" in data
+    assert "projects" in data
+    assert "tasks" in data
+    assert "work_reports" in data
+    assert "attendance" in data
+    assert "leave" in data
+
+
+def test_hr_can_get_employee_performance_analytics(db_session, test_performance_setup):
+    client = TestClient(app)
+    setup = test_performance_setup
+
+    res = client.get(f"/performance/employees/{setup['emp1_id']}/analytics", headers=setup["hr_headers"])
+    assert res.status_code == 200
+    data = res.json()
+    assert data["employee_id"] == setup["emp1_id"]
+
+
+def test_employee_cannot_access_other_employee_analytics_via_hr_endpoint(db_session, test_performance_setup):
+    client = TestClient(app)
+    setup = test_performance_setup
+
+    # Employee 2 tries to fetch Employee 1's analytics via HR endpoint
+    res = client.get(f"/performance/employees/{setup['emp1_id']}/analytics", headers=setup["emp2_headers"])
+    assert res.status_code == 403
+
+
+@patch("app.performance_service.service.send_performance_feedback_email")
+def test_complete_performance_review_triggers_email(mock_send_email, db_session, test_performance_setup):
+    client = TestClient(app)
+    setup = test_performance_setup
+
+    # 1. Create Draft -> NO email sent
+    payload = {
+        "employee_id": setup["emp1_id"],
+        "review_start_date": "2026-07-01",
+        "review_end_date": "2026-09-30",
+        "overall_feedback": "Draft feedback notes",
+        "ratings": [
+            {"category": "Communication", "rating": 4},
+            {"category": "Delivery", "rating": 5},
+        ],
+    }
+    create_res = client.post("/performance/reviews", json=payload, headers=setup["hr_headers"])
+    review_id = create_res.json()["id"]
+    mock_send_email.assert_not_called()
+
+    # 2. Update Draft -> NO email sent
+    update_res = client.put(f"/performance/reviews/{review_id}", json={"overall_feedback": "Updated feedback"}, headers=setup["hr_headers"])
+    assert update_res.status_code == 200
+    mock_send_email.assert_not_called()
+
+    # 3. Complete Review -> Email sent EXACTLY ONCE to Employee 1
+    complete_res = client.patch(f"/performance/reviews/{review_id}/complete", headers=setup["hr_headers"])
+    assert complete_res.status_code == 200
+
+    mock_send_email.assert_called_once()
+    kwargs = mock_send_email.call_args.kwargs
+    assert kwargs["recipient_email"] == setup["emp1_user"].email
+    assert kwargs["employee_name"] == "Alice Performer"
+    assert kwargs["overall_rating"] == 4.5
+    assert kwargs["overall_feedback"] == "Updated feedback"
+
+
+@patch("app.performance_service.service.send_performance_feedback_email")
+def test_complete_performance_review_smtp_failure_preserves_review(mock_send_email, db_session, test_performance_setup):
+    mock_send_email.side_effect = Exception("SMTP Server Unreachable")
+
+    client = TestClient(app)
+    setup = test_performance_setup
+
+    payload = {
+        "employee_id": setup["emp1_id"],
+        "review_start_date": "2026-07-01",
+        "review_end_date": "2026-09-30",
+        "ratings": [{"category": "Ownership", "rating": 5}],
+    }
+    create_res = client.post("/performance/reviews", json=payload, headers=setup["hr_headers"])
+    review_id = create_res.json()["id"]
+
+    complete_res = client.patch(f"/performance/reviews/{review_id}/complete", headers=setup["hr_headers"])
+    # Completed review status in DB preserved despite SMTP failure
+    assert complete_res.status_code == 200
+    assert complete_res.json()["status"] == "COMPLETED"
+    assert complete_res.json()["overall_rating"] == 5.0
+
+
 

@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, timedelta
+from unittest.mock import patch
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
@@ -295,4 +296,88 @@ def test_employee_get_my_projects_dual_id_mapping(client, hr_user_and_token, emp
     assigned_prj = next((p for p in my_projects.json() if p["project_id"] == p_id), None)
     assert assigned_prj is not None
     assert assigned_prj["name"] == "Dual ID Mapping Project"
+
+
+@patch("app.project_service.service.send_project_assignment_email")
+def test_project_assignment_triggers_email(mock_send_email, client, hr_user_and_token, emp_user_token_and_profile):
+    _, hr_token = hr_user_and_token
+    user, emp_token, employee = emp_user_token_and_profile
+    hr_headers = {"Authorization": f"Bearer {hr_token}"}
+
+    create_res = client.post(
+        "/projects",
+        json={"name": "Email Integration Project", "description": "Testing email dispatch", "start_date": date.today().isoformat()},
+        headers=hr_headers,
+    )
+    p_id = create_res.json()["id"]
+
+    roles_res = client.get("/project-roles", headers=hr_headers)
+    role = roles_res.json()[0]
+
+    assign_res = client.post(
+        f"/projects/{p_id}/assignments",
+        json={"employee_id": employee.id, "project_role_id": role["id"]},
+        headers=hr_headers,
+    )
+    assert assign_res.status_code == status.HTTP_201_CREATED
+
+    mock_send_email.assert_called_once()
+    kwargs = mock_send_email.call_args.kwargs
+    assert kwargs["recipient_email"] == user.email
+    assert kwargs["employee_name"] == f"{employee.first_name} {employee.last_name}"
+    assert kwargs["project_name"] == "Email Integration Project"
+    assert kwargs["project_role"] == role["name"]
+
+
+@patch("app.project_service.service.send_project_assignment_email")
+def test_project_assignment_invalid_employee_no_email(mock_send_email, client, hr_user_and_token):
+    _, hr_token = hr_user_and_token
+    hr_headers = {"Authorization": f"Bearer {hr_token}"}
+
+    create_res = client.post(
+        "/projects",
+        json={"name": "Invalid Emp Project", "start_date": date.today().isoformat()},
+        headers=hr_headers,
+    )
+    p_id = create_res.json()["id"]
+
+    roles_res = client.get("/project-roles", headers=hr_headers)
+    role_id = roles_res.json()[0]["id"]
+
+    assign_res = client.post(
+        f"/projects/{p_id}/assignments",
+        json={"employee_id": 999999, "project_role_id": role_id},
+        headers=hr_headers,
+    )
+    assert assign_res.status_code == status.HTTP_400_BAD_REQUEST
+    mock_send_email.assert_not_called()
+
+
+@patch("app.project_service.service.send_project_assignment_email")
+def test_project_assignment_smtp_failure_preserves_assignment(mock_send_email, client, hr_user_and_token, emp_user_token_and_profile):
+    mock_send_email.side_effect = Exception("SMTP Connection Failed")
+
+    _, hr_token = hr_user_and_token
+    user, emp_token, employee = emp_user_token_and_profile
+    hr_headers = {"Authorization": f"Bearer {hr_token}"}
+
+    create_res = client.post(
+        "/projects",
+        json={"name": "SMTP Resilience Project", "start_date": date.today().isoformat()},
+        headers=hr_headers,
+    )
+    p_id = create_res.json()["id"]
+
+    roles_res = client.get("/project-roles", headers=hr_headers)
+    role_id = roles_res.json()[0]["id"]
+
+    assign_res = client.post(
+        f"/projects/{p_id}/assignments",
+        json={"employee_id": employee.id, "project_role_id": role_id},
+        headers=hr_headers,
+    )
+    # Assignment succeeds in database despite SMTP exception
+    assert assign_res.status_code == status.HTTP_201_CREATED
+    assert assign_res.json()["status"] == "ACTIVE"
+
 

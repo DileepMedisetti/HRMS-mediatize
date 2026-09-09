@@ -1,5 +1,5 @@
 /* ==========================================================================
-   HR Profile — Premium Enterprise SaaS Theme
+   My Profile — Premium Enterprise SaaS Theme
    ========================================================================== */
 
 .profile-page-wrapper {
@@ -10,9 +10,7 @@
   box-sizing: border-box;
 }
 
-/* ==========================================================================
-   Skeleton Loading State
-   ========================================================================== */
+/* Skeleton Loading State */
 .profile-skeleton-wrapper {
   display: flex;
   flex-direction: column;
@@ -69,9 +67,7 @@
   border-radius: 14px;
 }
 
-/* ==========================================================================
-   Profile Hero Card
-   ========================================================================== */
+/* Hero Card */
 .profile-hero-card {
   background-color: var(--bg-surface, #ffffff);
   border: 1px solid var(--border-color, #e2e8f0);
@@ -84,7 +80,7 @@
 
 .profile-cover-banner {
   height: 140px;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 60%, #1e1b4b 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0369a1 100%);
   position: relative;
   overflow: hidden;
 }
@@ -94,8 +90,8 @@
   position: absolute;
   inset: 0;
   background-image: 
-    radial-gradient(circle at 85% 20%, rgba(59, 130, 246, 0.18), transparent 35%),
-    radial-gradient(circle at 15% 80%, rgba(99, 102, 241, 0.18), transparent 35%);
+    radial-gradient(circle at 80% 20%, rgba(14, 165, 233, 0.18), transparent 40%),
+    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.18), transparent 40%);
   pointer-events: none;
 }
 
@@ -135,7 +131,7 @@
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-color, #2563eb), #1d4ed8);
+  background: linear-gradient(135deg, #0284c7, #0369a1);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -197,9 +193,7 @@
   flex-wrap: wrap;
 }
 
-/* ==========================================================================
-   Badges & Status (STRICT ACCESSIBLE COLORS)
-   ========================================================================== */
+/* Role Pills */
 .profile-role-pill {
   display: inline-flex;
   align-items: center;
@@ -210,12 +204,6 @@
   letter-spacing: 0.05em;
   padding: 0.3rem 0.75rem;
   border-radius: 6px;
-}
-
-.role-pill-hr {
-  background-color: rgba(99, 102, 241, 0.12);
-  color: #6366f1;
-  border: 1px solid rgba(99, 102, 241, 0.25);
 }
 
 .role-pill-employee {
@@ -304,9 +292,7 @@
   line-height: 1;
 }
 
-/* ==========================================================================
-   Quick Info Stats Grid
-   ========================================================================== */
+/* Quick Info Stats Grid */
 .profile-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -368,9 +354,7 @@
   text-overflow: ellipsis;
 }
 
-/* ==========================================================================
-   Information Cards Grid
-   ========================================================================== */
+/* Information Cards Grid */
 .profile-info-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -459,9 +443,7 @@
   font-size: 0.875rem;
 }
 
-/* ==========================================================================
-   Edit Form Styles
-   ========================================================================== */
+/* Edit Form Styles */
 .profile-edit-card {
   background-color: var(--bg-surface, #ffffff);
   border: 1px solid var(--border-color, #e2e8f0);
@@ -562,9 +544,7 @@
   border-top: 1px solid var(--border-subtle, #f1f5f9);
 }
 
-/* ==========================================================================
-   Buttons
-   ========================================================================== */
+/* Buttons */
 .btn-profile-primary {
   display: inline-flex;
   align-items: center;
@@ -631,9 +611,7 @@
   background-color: #fee2e2;
 }
 
-/* ==========================================================================
-   Responsive Design Breakpoints
-   ========================================================================== */
+/* Responsive Design Breakpoints */
 @media (max-width: 960px) {
   .profile-stats-grid {
     grid-template-columns: repeat(2, 1fr);

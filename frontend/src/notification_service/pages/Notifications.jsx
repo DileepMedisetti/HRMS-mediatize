@@ -4,6 +4,7 @@ import { Bell, CheckCheck, ExternalLink } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import { useAuth } from "../../authentication_service/hooks/useAuth";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import Pagination from "../../shared/components/Pagination";
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead } from "../services/notificationApi";
 import { showSuccess, showError } from "../../shared/utils/toast";
 
@@ -57,13 +58,17 @@ function Notifications() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [total, setTotal] = useState(0);
-  const [pages, setPages] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const limit = 15;
+
+  useEffect(() => {
+    setPage(1);
+  }, [unreadOnly]);
 
   const fetchNotifications = useCallback(async () => {
     setLoading(true);
@@ -80,7 +85,7 @@ function Notifications() {
 
       setNotifications(data.items || []);
       setTotal(totalItems);
-      setPages(computedPages);
+      setTotalPages(computedPages);
       setUnreadCount(data.unread_count || 0);
     } catch (err) {
       console.error("Failed to load notifications", err);
@@ -94,6 +99,12 @@ function Notifications() {
   useEffect(() => {
     fetchNotifications();
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   const handleMarkRead = async (id) => {
     try {
@@ -119,7 +130,6 @@ function Notifications() {
     }
   };
 
-  const totalPages = Math.max(1, pages);
   const backTarget = user?.role === "HR" ? "/hr/dashboard" : "/employee/dashboard";
 
   return (
@@ -234,37 +244,13 @@ function Notifications() {
           </div>
         )}
 
-        {totalPages > 1 && (
-          <div style={styles.pagination}>
-            <button
-              style={{
-                ...styles.pageBtn,
-                opacity: page === 1 ? 0.5 : 1,
-                cursor: page === 1 ? "not-allowed" : "pointer",
-              }}
-              disabled={page === 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              Previous
-            </button>
-
-            <span style={styles.pageInfo}>
-              Page {page} of {totalPages}
-            </span>
-
-            <button
-              style={{
-                ...styles.pageBtn,
-                opacity: page === totalPages ? 0.5 : 1,
-                cursor: page === totalPages ? "not-allowed" : "pointer",
-              }}
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              Next
-            </button>
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={total}
+          onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+        />
       </div>
     </AppLayout>
   );

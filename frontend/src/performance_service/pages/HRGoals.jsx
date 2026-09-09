@@ -6,12 +6,11 @@ import {
   CheckCircle2,
   Calendar,
   RefreshCw,
-  ChevronLeft,
-  ChevronRight,
   X,
 } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import Pagination from "../../shared/components/Pagination";
 import { getAllGoals, createGoal, updateGoal } from "../services/performanceApi";
 import { getEmployees } from "../../employee_service/services/employeeApi";
 import { showSuccess, showError } from "../../shared/utils/toast";
@@ -26,6 +25,7 @@ function HRGoals() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   // Modals
   const [showModal, setShowModal] = useState(false);
@@ -59,13 +59,14 @@ function HRGoals() {
     try {
       const params = {
         page,
-        limit: 10,
+        limit: 15,
         status: selectedStatus || undefined,
         employee_id: selectedEmployeeId ? Number(selectedEmployeeId) : undefined,
       };
       const res = await getAllGoals(params);
       setGoals(res.data?.items || []);
       setTotalPages(res.data?.total_pages || 1);
+      setTotalItems(res.data?.total || 0);
     } catch (err) {
       console.error("Failed to fetch goals", err);
       showError("Unable to load performance goals.");
@@ -77,6 +78,12 @@ function HRGoals() {
   useEffect(() => {
     fetchGoals();
   }, [fetchGoals]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   const openCreateModal = () => {
     setEditingGoal(null);
@@ -299,29 +306,13 @@ function HRGoals() {
         )}
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="bg-white dark:bg-gray-800 p-4 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-between">
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              Page {page} of {totalPages}
-            </span>
-            <div className="flex gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
-                className="p-2 border rounded-lg disabled:opacity-50 text-gray-600 dark:text-gray-300"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-                className="p-2 border rounded-lg disabled:opacity-50 text-gray-600 dark:text-gray-300"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination
+          currentPage={page}
+          totalPages={totalPages}
+          totalItems={totalItems}
+          onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+          onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+        />
 
         {/* MODAL: CREATE / EDIT GOAL */}
         {showModal && (

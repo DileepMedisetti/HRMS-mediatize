@@ -12,6 +12,7 @@ from app.core.database import get_db
 from app.performance_service import service
 from app.performance_service.models import GoalStatus, ReviewStatus
 from app.performance_service.schemas import (
+    EmployeePerformanceAnalyticsResponse,
     EmployeePerformanceSummary,
     HRPerformanceAnalyticsResponse,
     HRPerformanceDashboardResponse,
@@ -35,6 +36,27 @@ router = APIRouter(
 # ============================================================
 # Employee Endpoints (/performance/my/*)
 # ============================================================
+
+@router.get(
+    "/my/analytics",
+    response_model=EmployeePerformanceAnalyticsResponse,
+)
+def get_my_performance_analytics(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get rich performance analytics strictly scoped to the logged-in employee."""
+    emp = service.get_employee_by_user_id(
+        db,
+        current_user.id,
+    )
+
+    return service.get_employee_performance_analytics(
+        db,
+        emp.id,
+        current_user,
+    )
+
 
 @router.get(
     "/my/summary",
@@ -254,6 +276,23 @@ def get_employee_performance_details(
 ):
     """Get detailed performance overview and contextual metrics for an employee (HR access)."""
     return service.get_employee_performance_summary(
+        db,
+        employee_id,
+        current_hr,
+    )
+
+
+@router.get(
+    "/employees/{employee_id}/analytics",
+    response_model=EmployeePerformanceAnalyticsResponse,
+)
+def get_employee_performance_analytics_for_hr(
+    employee_id: int,
+    current_hr: User = Depends(get_current_hr),
+    db: Session = Depends(get_db),
+):
+    """Get detailed performance analytics for an employee (HR access)."""
+    return service.get_employee_performance_analytics(
         db,
         employee_id,
         current_hr,

@@ -46,51 +46,6 @@ export function Table({ columns = [], data = [], keyField = "id", loading = fals
   );
 }
 
-export function Pagination({ page = 1, totalPages = 1, total = 0, onPageChange }) {
-  if (totalPages <= 1) return null;
+import StandardPagination from "./Pagination";
+export const Pagination = StandardPagination;
 
-  return (
-    <div style={styles.paginationContainer}>
-      <span style={styles.pageInfo}>
-        Showing page <strong>{page}</strong> of <strong>{totalPages}</strong> ({total} total)
-      </span>
-      <div style={{ display: "flex", gap: "0.5rem" }}>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={page <= 1}
-          onClick={() => onPageChange(page - 1)}
-        >
-          &larr; Previous
-        </Button>
-        <Button
-          variant="secondary"
-          size="sm"
-          disabled={page >= totalPages}
-          onClick={() => onPageChange(page + 1)}
-        >
-          Next &rarr;
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-const styles = {
-  paginationContainer: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "0.75rem",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "0.875rem 1.25rem",
-    backgroundColor: "var(--bg-surface)",
-    border: "1px solid var(--border-color)",
-    borderTop: "none",
-    borderRadius: "0 0 var(--radius-lg) var(--radius-lg)",
-  },
-  pageInfo: {
-    fontSize: "0.8125rem",
-    color: "var(--text-secondary)",
-  },
-};

@@ -19,6 +19,7 @@ import {
 import Button from "../../shared/components/Button";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
+import Pagination from "../../shared/components/Pagination";
 import AnnouncementDetailModal from "./AnnouncementDetailModal";
 
 const EmployeeAnnouncements = () => {
@@ -30,6 +31,7 @@ const EmployeeAnnouncements = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
 
@@ -37,7 +39,7 @@ const EmployeeAnnouncements = () => {
     setLoading(true);
     setError(null);
     try {
-      const params = { page, limit: 10, search: search.trim() || undefined };
+      const params = { page, limit: 15, search: search.trim() || undefined };
       if (filter === "UNREAD") params.unread_only = true;
       if (filter === "COMPANY") params.scope = "COMPANY";
       if (filter === "PROJECT") params.scope = "PROJECT";
@@ -46,6 +48,7 @@ const EmployeeAnnouncements = () => {
       setAnnouncements(res.data.items || []);
       setUnreadCount(res.data.unread_count || 0);
       setTotalPages(res.data.total_pages || 1);
+      setTotalItems(res.data.total || 0);
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to load announcements.");
       toast.error("Failed to load announcements feed");
@@ -57,6 +60,12 @@ const EmployeeAnnouncements = () => {
   useEffect(() => {
     fetchAnnouncements();
   }, [fetchAnnouncements]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages > 0) {
+      setPage(totalPages);
+    }
+  }, [totalPages, page]);
 
   const handleOpenDetail = async (announcement) => {
     setSelectedAnnouncement(announcement);
@@ -265,27 +274,13 @@ const EmployeeAnnouncements = () => {
           })}
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-4">
-              <button
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg disabled:opacity-50 text-gray-700 dark:text-gray-300"
-              >
-                Previous
-              </button>
-              <span className="text-xs text-gray-500 dark:text-gray-400">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg disabled:opacity-50 text-gray-700 dark:text-gray-300"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+          />
         </div>
       )}
 

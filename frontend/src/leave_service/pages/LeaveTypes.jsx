@@ -3,6 +3,7 @@ import { X, Plus } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import { showSuccess, showError } from "../../shared/utils/toast";
+import Pagination from "../../shared/components/Pagination";
 import {
   getAllLeaveTypes,
   createLeaveType,
@@ -14,6 +15,8 @@ import {
 function LeaveTypes() {
   const [leaveTypes, setLeaveTypes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const ITEMS_PER_PAGE = 15;
   const [showModal, setShowModal] = useState(false);
   const [editingType, setEditingType] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -113,6 +116,18 @@ function LeaveTypes() {
     }
   };
 
+  const totalPages = Math.ceil(leaveTypes.length / ITEMS_PER_PAGE);
+  const paginatedLeaveTypes = leaveTypes.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE
+  );
+
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
+
   return (
     <AppLayout title="Leave Type Configurations">
       <div style={styles.container}>
@@ -134,59 +149,68 @@ function LeaveTypes() {
         ) : leaveTypes.length === 0 ? (
           <div style={styles.emptyState}>No leave types configured.</div>
         ) : (
-          <div style={styles.grid}>
-            {leaveTypes.map((t) => (
-              <div key={t.id} style={styles.card}>
-                <div style={styles.cardHeader}>
-                  <h3 style={styles.cardTitle}>{t.name}</h3>
-                  <span
-                    style={{
-                      ...styles.statusBadge,
-                      backgroundColor: t.is_active ? "rgba(34, 197, 94, 0.2)" : "rgba(148, 163, 184, 0.2)",
-                      color: t.is_active ? "#4ade80" : "#94a3b8",
-                    }}
-                  >
-                    {t.is_active ? "ACTIVE" : "INACTIVE"}
-                  </span>
-                </div>
-                <p style={styles.cardSubtitle}>{t.description || "No description provided."}</p>
-
-                <div style={styles.metaRow}>
-                  <div>
-                    <span style={styles.metaLabel}>Annual Allocation:</span>
-                    <strong style={styles.metaVal}>{t.annual_allocation} days</strong>
+          <>
+            <div style={styles.grid}>
+              {paginatedLeaveTypes.map((t) => (
+                <div key={t.id} style={styles.card}>
+                  <div style={styles.cardHeader}>
+                    <h3 style={styles.cardTitle}>{t.name}</h3>
+                    <span
+                      style={{
+                        ...styles.statusBadge,
+                        backgroundColor: t.is_active ? "rgba(34, 197, 94, 0.2)" : "rgba(148, 163, 184, 0.2)",
+                        color: t.is_active ? "#4ade80" : "#94a3b8",
+                      }}
+                    >
+                      {t.is_active ? "ACTIVE" : "INACTIVE"}
+                    </span>
                   </div>
-                  <div>
-                    <span style={styles.metaLabel}>Type:</span>
-                    <span style={styles.metaVal}>{t.is_paid ? "Paid" : "Unpaid"}</span>
+                  <p style={styles.cardSubtitle}>{t.description || "No description provided."}</p>
+
+                  <div style={styles.metaRow}>
+                    <div>
+                      <span style={styles.metaLabel}>Annual Allocation:</span>
+                      <strong style={styles.metaVal}>{t.annual_allocation} days</strong>
+                    </div>
+                    <div>
+                      <span style={styles.metaLabel}>Type:</span>
+                      <span style={styles.metaVal}>{t.is_paid ? "Paid" : "Unpaid"}</span>
+                    </div>
+                  </div>
+
+                  <div style={styles.metaRow}>
+                    <div>
+                      <span style={styles.metaLabel}>Requires Document:</span>
+                      <span style={styles.metaVal}>{t.requires_document ? "Yes" : "No"}</span>
+                    </div>
+                  </div>
+
+                  <div style={styles.cardActions}>
+                    <button style={styles.secondaryBtn} onClick={() => openEditModal(t)}>
+                      Edit
+                    </button>
+                    <button
+                      style={{
+                        ...styles.secondaryBtn,
+                        color: t.is_active ? "#ef4444" : "#4ade80",
+                        borderColor: t.is_active ? "#ef4444" : "#22c55e",
+                      }}
+                      onClick={() => toggleActive(t)}
+                    >
+                      {t.is_active ? "Deactivate" : "Activate"}
+                    </button>
                   </div>
                 </div>
-
-                <div style={styles.metaRow}>
-                  <div>
-                    <span style={styles.metaLabel}>Requires Document:</span>
-                    <span style={styles.metaVal}>{t.requires_document ? "Yes" : "No"}</span>
-                  </div>
-                </div>
-
-                <div style={styles.cardActions}>
-                  <button style={styles.secondaryBtn} onClick={() => openEditModal(t)}>
-                    Edit
-                  </button>
-                  <button
-                    style={{
-                      ...styles.secondaryBtn,
-                      color: t.is_active ? "#ef4444" : "#4ade80",
-                      borderColor: t.is_active ? "#ef4444" : "#22c55e",
-                    }}
-                    onClick={() => toggleActive(t)}
-                  >
-                    {t.is_active ? "Deactivate" : "Activate"}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={leaveTypes.length}
+              onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+              onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+            />
+          </>
         )}
 
         {/* Modal */}

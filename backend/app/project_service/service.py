@@ -383,11 +383,22 @@ def assign_employee_to_project(db: Session, project_id: int, schema: ProjectAssi
     if employee.user and employee.user.email:
         try:
             assigned_by_user = db.get(User, user_id) if user_id else None
-            assigned_by_name = (
-                f"{assigned_by_user.employee.first_name} {assigned_by_user.employee.last_name}".strip()
-                if (assigned_by_user and assigned_by_user.employee)
-                else (assigned_by_user.username if assigned_by_user else "HR Department")
-            )
+            assigned_by_emp = None
+            if user_id:
+                assigned_by_emp = db.scalar(
+                    select(Employee).where(
+                        Employee.user_id == user_id,
+                        Employee.deleted_at.is_(None),
+                    )
+                )
+
+            if assigned_by_emp:
+                assigned_by_name = f"{assigned_by_emp.first_name} {assigned_by_emp.last_name}".strip()
+            elif assigned_by_user:
+                assigned_by_name = getattr(assigned_by_user, "username", None) or assigned_by_user.email
+            else:
+                assigned_by_name = "HR Department"
+
             emp_full_name = f"{employee.first_name} {employee.last_name}".strip()
 
             send_project_assignment_email(

@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Pencil } from "lucide-react";
+import {
+  Pencil,
+  Camera,
+  Trash2,
+  Mail,
+  MapPin,
+  ShieldCheck,
+  Calendar,
+  Building2,
+  Briefcase,
+  User,
+  BadgeCheck,
+  CheckCircle2,
+  Clock,
+  Sparkles,
+  ArrowLeft,
+} from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import { useAuth } from "../hooks/useAuth";
@@ -11,6 +27,7 @@ import {
   uploadHRProfilePhoto,
   deleteHRProfilePhoto,
 } from "../services/authApi";
+import "./HRProfile.css";
 
 export default function HRProfile({ editMode = false }) {
   const navigate = useNavigate();
@@ -133,7 +150,7 @@ export default function HRProfile({ editMode = false }) {
     const fn = (profileData?.first_name || firstName || "").trim();
     const ln = (profileData?.last_name || lastName || "").trim();
     const full = [fn, ln].filter(Boolean).join(" ");
-    return full || "Mohan Medisetti";
+    return full || "HR Executive";
   };
 
   const getInitials = () => {
@@ -148,16 +165,53 @@ export default function HRProfile({ editMode = false }) {
     if (ln) {
       return ln.slice(0, 2).toUpperCase();
     }
-    return "MM";
+    return "HR";
   };
 
-  const displayEmail = profileData?.email || user?.email || "nameismohan123@gmail.com";
+  const displayEmail = profileData?.email || user?.email || "hr@mediatizetech.com";
   const displayRole = profileData?.role || user?.role || "HR";
+
+  const renderStatusBadge = (status = "ACTIVE") => {
+    const normalized = (status || "ACTIVE").toUpperCase();
+    let colorClass = "status-badge-active";
+    let label = normalized;
+
+    if (normalized === "ACTIVE") {
+      colorClass = "status-badge-active";
+    } else if (normalized === "INACTIVE") {
+      colorClass = "status-badge-inactive";
+    } else if (normalized === "ON_NOTICE") {
+      colorClass = "status-badge-notice";
+    } else if (normalized === "TERMINATED") {
+      colorClass = "status-badge-terminated";
+    }
+
+    return (
+      <span className={`profile-status-badge ${colorClass}`}>
+        <span className="status-dot">●</span>
+        <span>{label}</span>
+      </span>
+    );
+  };
 
   if (loading) {
     return (
       <AppLayout title="HR Profile">
-        <div style={styles.loading}>Loading HR profile...</div>
+        <div className="profile-page-wrapper">
+          <BackToDashboard to="/hr/dashboard" role="HR" />
+          <div className="profile-skeleton-wrapper">
+            <div className="skeleton-hero-card profile-shimmer"></div>
+            <div className="skeleton-stats-grid">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="skeleton-stat-box profile-shimmer"></div>
+              ))}
+            </div>
+            <div className="skeleton-info-grid">
+              <div className="skeleton-info-box profile-shimmer"></div>
+              <div className="skeleton-info-box profile-shimmer"></div>
+            </div>
+          </div>
+        </div>
       </AppLayout>
     );
   }
@@ -165,31 +219,36 @@ export default function HRProfile({ editMode = false }) {
   if (!profileData) return null;
 
   return (
-    <AppLayout title={isEditing ? "Edit HR Profile" : "HR Profile"}>
-      <div style={styles.container}>
+    <AppLayout title={isEditing ? "Edit HR Profile" : "HR Executive Profile"}>
+      <div className="profile-page-wrapper">
         <BackToDashboard to="/hr/dashboard" role="HR" />
-        <div style={styles.card}>
-          {/* Profile Header */}
-          <div style={styles.header}>
-            <div style={styles.avatarSection}>
-              <div style={styles.avatarContainer}>
+
+        {/* HERO CARD */}
+        <div className="profile-hero-card">
+          <div className="profile-cover-banner"></div>
+
+          <div className="profile-hero-body">
+            <div className="profile-hero-top-bar">
+              <div className="profile-avatar-wrapper">
                 {profileData.profile_photo_url ? (
                   <img
                     src={profileData.profile_photo_url}
                     alt={getFullName()}
-                    style={styles.avatarImg}
+                    className="profile-avatar-img"
                   />
                 ) : (
-                  <div style={styles.avatarPlaceholder}>
+                  <div className="profile-avatar-initials">
                     {getInitials()}
                   </div>
                 )}
-              </div>
 
-              {isEditing && (
-                <div style={styles.photoControls}>
-                  <label style={uploadingPhoto ? styles.uploadBtnDisabled : styles.uploadBtn}>
-                    {uploadingPhoto ? "Uploading..." : "Change Photo"}
+                {/* Upload Overlay Button in Edit Mode */}
+                {isEditing && (
+                  <label
+                    className="profile-avatar-upload-overlay"
+                    title={uploadingPhoto ? "Uploading..." : "Upload Profile Photo"}
+                  >
+                    <Camera size={16} />
                     <input
                       type="file"
                       accept="image/png, image/jpeg, image/jpg, image/webp"
@@ -198,409 +257,275 @@ export default function HRProfile({ editMode = false }) {
                       style={{ display: "none" }}
                     />
                   </label>
+                )}
+              </div>
 
-                  {profileData.profile_photo_url && (
-                    <button onClick={handleRemovePhoto} style={styles.removePhotoBtn}>
-                      Remove Photo
+              <div className="profile-hero-actions">
+                {!isEditing ? (
+                  <button
+                    onClick={() => navigate("/hr/profile/edit")}
+                    className="btn-profile-primary"
+                    aria-label="Edit HR Profile"
+                  >
+                    <Pencil size={15} />
+                    <span>Edit Profile</span>
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => navigate("/hr/profile")}
+                      className="btn-profile-secondary"
+                    >
+                      Cancel
                     </button>
-                  )}
-                </div>
-              )}
+                    {profileData.profile_photo_url && (
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        className="btn-profile-photo-remove"
+                      >
+                        <Trash2 size={13} />
+                        <span>Remove Photo</span>
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
-            <div>
-              <h2 style={styles.name}>{getFullName()}</h2>
-              <div style={styles.subMeta}>
-                <span style={styles.codeBadge}>{displayRole}</span>
-                <span style={styles.statusBadge}>ACTIVE</span>
+            <div className="profile-hero-identity">
+              <h1 className="profile-hero-name">{getFullName()}</h1>
+              <div className="profile-meta-badges">
+                <span className="profile-role-pill role-pill-hr">
+                  <ShieldCheck size={13} />
+                  <span>{displayRole}</span>
+                </span>
+                <span className="profile-code-tag">
+                  <BadgeCheck size={13} />
+                  <span>HR-ADMIN</span>
+                </span>
+                {renderStatusBadge("ACTIVE")}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Details View or Edit Form */}
-          {!isEditing ? (
-            <div style={styles.section}>
-              <div style={styles.sectionHeader}>
-                <h3 style={styles.sectionTitle}>Personal & Contact Information</h3>
-                <button
-                  onClick={() => navigate("/hr/profile/edit")}
-                  style={styles.editBtn}
-                  aria-label="Edit Profile"
-                >
-                  <Pencil size={14} style={{ marginRight: "0.35rem", display: "inline-block", verticalAlign: "middle" }} />
-                  Edit Profile
-                </button>
+        {!isEditing ? (
+          <>
+            {/* QUICK INFO STATS CARDS */}
+            <div className="profile-stats-grid">
+              <div className="profile-stat-card">
+                <div className="stat-icon-wrapper">
+                  <BadgeCheck size={20} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-label">Admin ID</span>
+                  <span className="stat-value">HR-{profileData.id || "001"}</span>
+                </div>
               </div>
 
-              <div style={styles.grid}>
-                <div style={styles.fieldItem}>
-                  <span style={styles.fieldLabel}>Name</span>
-                  <span style={styles.fieldValue}>{getFullName()}</span>
+              <div className="profile-stat-card">
+                <div className="stat-icon-wrapper">
+                  <Building2 size={20} />
                 </div>
-                <div style={styles.fieldItem}>
-                  <span style={styles.fieldLabel}>Email Address</span>
-                  <span style={styles.fieldValue}>{displayEmail}</span>
+                <div className="stat-content">
+                  <span className="stat-label">Department</span>
+                  <span className="stat-value">Human Resources</span>
                 </div>
-                <div style={styles.fieldItem}>
-                  <span style={styles.fieldLabel}>Role</span>
-                  <span style={styles.fieldValue}>{displayRole}</span>
+              </div>
+
+              <div className="profile-stat-card">
+                <div className="stat-icon-wrapper">
+                  <Briefcase size={20} />
                 </div>
-                <div style={styles.fieldItemFull}>
-                  <span style={styles.fieldLabel}>Address</span>
-                  <span style={styles.fieldValue}>
-                    {profileData.address ? profileData.address : "Not provided"}
-                  </span>
+                <div className="stat-content">
+                  <span className="stat-label">Executive Role</span>
+                  <span className="stat-value">{displayRole} Management</span>
+                </div>
+              </div>
+
+              <div className="profile-stat-card">
+                <div className="stat-icon-wrapper">
+                  <ShieldCheck size={20} />
+                </div>
+                <div className="stat-content">
+                  <span className="stat-label">Access Control</span>
+                  <span className="stat-value">Super Admin</span>
                 </div>
               </div>
             </div>
-          ) : (
-            <form onSubmit={handleSaveProfile} style={styles.form}>
-              <h3 style={styles.sectionTitle}>Update Your HR Profile Info</h3>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
-                  gap: "1rem",
-                }}
-              >
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>First Name *</label>
+            {/* TWO-COLUMN DETAILED INFO GRID */}
+            <div className="profile-info-grid">
+              {/* Card 1: Contact Information */}
+              <div className="profile-info-card">
+                <div className="info-card-header">
+                  <h3 className="info-card-title">
+                    <Mail size={18} className="info-card-title-icon" />
+                    <span>Contact Information</span>
+                  </h3>
+                </div>
+                <div className="info-card-fields">
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <Mail size={13} className="info-field-icon" />
+                      <span>Email Address</span>
+                    </span>
+                    <span className="info-field-value">{displayEmail}</span>
+                  </div>
+
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <MapPin size={13} className="info-field-icon" />
+                      <span>Office / Residential Address</span>
+                    </span>
+                    <span className="info-field-value">
+                      {profileData.address ? (
+                        profileData.address
+                      ) : (
+                        <span className="info-field-empty">Not provided</span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: System & Account Security */}
+              <div className="profile-info-card">
+                <div className="info-card-header">
+                  <h3 className="info-card-title">
+                    <ShieldCheck size={18} className="info-card-title-icon" />
+                    <span>Account & Security</span>
+                  </h3>
+                </div>
+                <div className="info-card-fields">
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <User size={13} className="info-field-icon" />
+                      <span>Full Name</span>
+                    </span>
+                    <span className="info-field-value">{getFullName()}</span>
+                  </div>
+
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <CheckCircle2 size={13} className="info-field-icon" />
+                      <span>Account Status</span>
+                    </span>
+                    <div style={{ marginTop: "0.15rem" }}>
+                      {renderStatusBadge("ACTIVE")}
+                    </div>
+                  </div>
+
+                  <div className="info-field-item">
+                    <span className="info-field-label">
+                      <Sparkles size={13} className="info-field-icon" />
+                      <span>Authentication Method</span>
+                    </span>
+                    <span className="info-field-value">Passwordless OTP Verification</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* EDIT PROFILE FORM CARD */
+          <div className="profile-edit-card">
+            <h2 className="profile-form-title">
+              <Pencil size={18} style={{ color: "var(--primary-color)" }} />
+              <span>Update HR Profile Information</span>
+            </h2>
+
+            <form onSubmit={handleSaveProfile}>
+              <div className="profile-form-grid-2">
+                <div className="profile-form-group">
+                  <label className="profile-form-label">
+                    <span>First Name</span>
+                    <span style={{ color: "var(--danger-color)" }}>*</span>
+                  </label>
                   <input
                     type="text"
                     required
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    style={styles.input}
-                    placeholder="First Name"
+                    className="profile-form-input"
+                    placeholder="Enter first name"
                   />
                 </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Last Name</label>
+                <div className="profile-form-group">
+                  <label className="profile-form-label">
+                    <span>Last Name</span>
+                  </label>
                   <input
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    style={styles.input}
-                    placeholder="Last Name"
+                    className="profile-form-input"
+                    placeholder="Enter last name"
                   />
                 </div>
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Address (Optional)</label>
+              <div className="profile-form-group" style={{ marginBottom: "1.25rem" }}>
+                <label className="profile-form-label">
+                  <span>Address</span>
+                </label>
                 <textarea
-                  rows="3"
+                  rows={3}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  style={styles.textarea}
-                  placeholder="Enter your address (e.g. Hyderabad, Telangana, India)"
+                  className="profile-form-textarea"
+                  placeholder="Enter office or residential address (e.g. Hyderabad, Telangana, India)"
                 />
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
-                  gap: "1rem",
-                  opacity: 0.85,
-                }}
-              >
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Email Address (Read Only)</label>
+              <div className="profile-form-grid-2" style={{ opacity: 0.85 }}>
+                <div className="profile-form-group">
+                  <label className="profile-form-label">
+                    <span>Email Address (Read Only)</span>
+                  </label>
                   <input
                     type="email"
                     value={displayEmail}
                     disabled
-                    style={{
-                      ...styles.input,
-                      backgroundColor: "var(--bg-surface-elevated)",
-                      cursor: "not-allowed",
-                      color: "var(--text-muted)",
-                    }}
+                    className="profile-form-input profile-form-input-disabled"
                   />
                 </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Role (Read Only)</label>
+                <div className="profile-form-group">
+                  <label className="profile-form-label">
+                    <span>System Role (Read Only)</span>
+                  </label>
                   <input
                     type="text"
                     value={displayRole}
                     disabled
-                    style={{
-                      ...styles.input,
-                      backgroundColor: "var(--bg-surface-elevated)",
-                      cursor: "not-allowed",
-                      color: "var(--text-muted)",
-                    }}
+                    className="profile-form-input profile-form-input-disabled"
                   />
                 </div>
               </div>
 
-              <div style={styles.buttonGroup}>
+              <div className="profile-form-actions">
                 <button
                   type="button"
                   onClick={() => navigate("/hr/profile")}
-                  style={styles.cancelBtn}
+                  className="btn-profile-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  style={saving ? styles.submitBtnDisabled : styles.submitBtn}
+                  className="btn-profile-primary"
                 >
-                  {saving ? "Saving..." : "Save Changes"}
+                  {saving ? "Saving Changes..." : "Save Changes"}
                 </button>
               </div>
             </form>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </AppLayout>
   );
 }
-
-const styles = {
-  container: {
-    padding: "0 0 2rem 0",
-    maxWidth: "800px",
-  },
-  card: {
-    backgroundColor: "var(--bg-surface)",
-    borderRadius: "var(--radius-lg)",
-    padding: "2rem",
-    border: "1px solid var(--border-color)",
-    color: "var(--text-primary)",
-  },
-  header: {
-    display: "flex",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "1.5rem",
-    marginBottom: "2rem",
-    borderBottom: "1px solid var(--border-color)",
-    paddingBottom: "1.5rem",
-  },
-  avatarSection: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "0.75rem",
-  },
-  avatarContainer: {
-    width: "96px",
-    height: "96px",
-    borderRadius: "50%",
-    overflow: "hidden",
-    border: "3px solid var(--primary-color)",
-  },
-  avatarImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-  },
-  avatarPlaceholder: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "var(--primary-color)",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "2rem",
-    fontWeight: "700",
-  },
-  photoControls: {
-    display: "flex",
-    flexWrap: "wrap",
-    gap: "0.5rem",
-  },
-  uploadBtn: {
-    backgroundColor: "var(--primary-color)",
-    color: "var(--text-on-primary)",
-    padding: "0.25rem 0.625rem",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "0.75rem",
-    fontWeight: "600",
-    cursor: "pointer",
-  },
-  uploadBtnDisabled: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--text-muted)",
-    padding: "0.25rem 0.625rem",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "0.75rem",
-    cursor: "not-allowed",
-  },
-  removePhotoBtn: {
-    backgroundColor: "var(--danger-color)",
-    color: "#ffffff",
-    border: "none",
-    padding: "0.25rem 0.625rem",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "0.75rem",
-    cursor: "pointer",
-  },
-  name: {
-    fontSize: "1.75rem",
-    fontWeight: "700",
-    color: "var(--text-primary)",
-    margin: 0,
-  },
-  subMeta: {
-    display: "flex",
-    gap: "0.5rem",
-    marginTop: "0.375rem",
-  },
-  codeBadge: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--primary-color)",
-    padding: "0.2rem 0.5rem",
-    borderRadius: "var(--radius-sm)",
-    fontFamily: "var(--font-mono)",
-    fontSize: "0.875rem",
-  },
-  statusBadge: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--text-secondary)",
-    border: "1px solid var(--border-color)",
-    padding: "0.2rem 0.5rem",
-    borderRadius: "var(--radius-sm)",
-    fontSize: "0.75rem",
-    fontWeight: "600",
-  },
-  section: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "1rem",
-  },
-  sectionHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: "0.75rem",
-  },
-  sectionTitle: {
-    fontSize: "1.125rem",
-    fontWeight: "600",
-    color: "var(--text-secondary)",
-    margin: 0,
-  },
-  editBtn: {
-    backgroundColor: "var(--primary-color)",
-    color: "var(--text-on-primary)",
-    border: "none",
-    padding: "0.375rem 0.875rem",
-    borderRadius: "var(--radius-md)",
-    fontSize: "0.875rem",
-    cursor: "pointer",
-    fontWeight: "500",
-  },
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
-    gap: "1.5rem",
-    backgroundColor: "var(--bg-surface-elevated)",
-    padding: "1.5rem",
-    borderRadius: "var(--radius-md)",
-    border: "1px solid var(--border-color)",
-  },
-  fieldItem: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.25rem",
-  },
-  fieldItemFull: {
-    gridColumn: "1 / -1",
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.25rem",
-  },
-  fieldLabel: {
-    fontSize: "0.75rem",
-    textTransform: "uppercase",
-    color: "var(--text-muted)",
-    letterSpacing: "0.05em",
-    fontWeight: "600",
-  },
-  fieldValue: {
-    fontSize: "1rem",
-    color: "var(--text-primary)",
-    fontWeight: "500",
-  },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "1.25rem",
-    backgroundColor: "var(--bg-surface-elevated)",
-    padding: "1.5rem",
-    borderRadius: "var(--radius-md)",
-    border: "1px solid var(--border-color)",
-  },
-  formGroup: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "0.375rem",
-  },
-  label: {
-    fontSize: "0.875rem",
-    color: "var(--text-secondary)",
-    fontWeight: "500",
-  },
-  input: {
-    backgroundColor: "var(--bg-surface)",
-    border: "1px solid var(--border-color)",
-    color: "var(--text-primary)",
-    padding: "0.625rem 0.875rem",
-    borderRadius: "var(--radius-md)",
-    fontSize: "0.875rem",
-  },
-  textarea: {
-    backgroundColor: "var(--bg-surface)",
-    border: "1px solid var(--border-color)",
-    color: "var(--text-primary)",
-    padding: "0.625rem 0.875rem",
-    borderRadius: "var(--radius-md)",
-    fontSize: "0.875rem",
-    resize: "vertical",
-  },
-  buttonGroup: {
-    display: "flex",
-    justifyContent: "flex-end",
-    flexWrap: "wrap",
-    gap: "0.75rem",
-  },
-  cancelBtn: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--text-primary)",
-    border: "1px solid var(--border-color)",
-    padding: "0.5rem 1rem",
-    borderRadius: "var(--radius-md)",
-    cursor: "pointer",
-  },
-  submitBtn: {
-    backgroundColor: "var(--primary-color)",
-    color: "var(--text-on-primary)",
-    border: "none",
-    padding: "0.5rem 1rem",
-    borderRadius: "var(--radius-md)",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
-  submitBtnDisabled: {
-    backgroundColor: "var(--bg-surface-elevated)",
-    color: "var(--text-muted)",
-    border: "1px solid var(--border-color)",
-    padding: "0.5rem 1rem",
-    borderRadius: "var(--radius-md)",
-    cursor: "not-allowed",
-  },
-  loading: {
-    textAlign: "center",
-    padding: "3rem",
-    color: "var(--text-muted)",
-  },
-};

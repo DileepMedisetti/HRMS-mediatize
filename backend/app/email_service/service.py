@@ -1,4 +1,5 @@
 from email.message import EmailMessage
+import html
 from pathlib import Path
 import smtplib
 from typing import Optional
@@ -291,16 +292,21 @@ def send_project_assignment_email(
     template = load_template("project_assignment.html")
 
     clean_name = (
-        employee_name.strip()
+        html.escape(employee_name.strip())
         if employee_name and employee_name.strip()
         else "Team Member"
     )
 
+    clean_project_name = html.escape(project_name or "N/A")
+    clean_role = html.escape(project_role or "N/A")
+
     clean_desc = (
-        project_description.strip()
+        html.escape(project_description.strip())
         if project_description and project_description.strip()
         else "No description provided."
     )
+
+    clean_assigned_by = html.escape(assigned_by_name or "HR Department")
 
     clean_url = (
         login_url.strip()
@@ -311,14 +317,14 @@ def send_project_assignment_email(
     html_content = (
         template
         .replace("{{ employee_name }}", clean_name)
-        .replace("{{ project_name }}", project_name or "N/A")
-        .replace("{{ project_role }}", project_role or "N/A")
+        .replace("{{ project_name }}", clean_project_name)
+        .replace("{{ project_role }}", clean_role)
         .replace("{{ project_description }}", clean_desc)
-        .replace("{{ start_date }}", start_date or "N/A")
-        .replace("{{ assigned_date }}", assigned_date or "N/A")
+        .replace("{{ start_date }}", html.escape(start_date or "N/A"))
+        .replace("{{ assigned_date }}", html.escape(assigned_date or "N/A"))
         .replace(
             "{{ assigned_by_name }}",
-            assigned_by_name or "HR Department",
+            clean_assigned_by,
         )
         .replace("{{ login_url }}", clean_url)
     )
@@ -497,13 +503,15 @@ def send_performance_feedback_email(
     template = load_template("performance_feedback.html")
 
     clean_name = (
-        employee_name.strip()
+        html.escape(employee_name.strip())
         if employee_name and employee_name.strip()
         else "Team Member"
     )
 
+    clean_period = html.escape(review_period or "N/A")
+
     clean_feedback = (
-        overall_feedback.strip()
+        html.escape(overall_feedback.strip())
         if overall_feedback and overall_feedback.strip()
         else "No additional comments provided."
     )
@@ -517,14 +525,14 @@ def send_performance_feedback_email(
     html_content = (
         template
         .replace("{{ employee_name }}", clean_name)
-        .replace("{{ review_period }}", review_period or "N/A")
+        .replace("{{ review_period }}", clean_period)
         .replace(
             "{{ overall_rating }}",
             f"{overall_rating:.1f}",
         )
         .replace(
             "{{ review_date }}",
-            review_date or "N/A",
+            html.escape(review_date or "N/A"),
         )
         .replace(
             "{{ overall_feedback }}",

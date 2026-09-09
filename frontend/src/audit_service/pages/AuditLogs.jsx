@@ -4,6 +4,7 @@ import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import { getAuditLogs } from "../services/auditApi";
 import { showError } from "../../shared/utils/toast";
+import Pagination from "../../shared/components/Pagination";
 
 const AUDIT_ACTIONS = [
   "LOGIN_SUCCESS",
@@ -27,7 +28,7 @@ export default function AuditLogs() {
   const [error, setError] = useState(null);
 
   const [page, setPage] = useState(1);
-  const [limit] = useState(20);
+  const limit = 15;
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
 
@@ -69,6 +70,18 @@ export default function AuditLogs() {
   useEffect(() => {
     fetchLogs();
   }, [page, actionFilter, fromDate, toDate]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [actionFilter, fromDate, toDate]);
+
+  // Ensure current page does not exceed totalPages
+  useEffect(() => {
+    if (totalPages > 0 && page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -271,27 +284,13 @@ export default function AuditLogs() {
               </div>
 
               {/* Pagination Controls */}
-              <div style={styles.paginationRow}>
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1 || loading}
-                  style={{ ...(page <= 1 ? styles.pageBtnDisabled : styles.pageBtn), display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
-                >
-                  <ArrowLeft size={14} /> Previous
-                </button>
-
-                <span style={styles.pageInfo}>
-                  Page <strong>{page}</strong> of <strong>{totalPages || 1}</strong>
-                </span>
-
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages || loading}
-                  style={{ ...(page >= totalPages ? styles.pageBtnDisabled : styles.pageBtn), display: "inline-flex", alignItems: "center", gap: "0.25rem" }}
-                >
-                  Next <ArrowRight size={14} />
-                </button>
-              </div>
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={total}
+                onPrevious={() => setPage((p) => Math.max(1, p - 1))}
+                onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+              />
             </>
           )}
         </div>

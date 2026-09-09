@@ -3,6 +3,7 @@ from unittest.mock import patch
 from app.email_service.service import (
     send_announcement_email,
     send_otp_email,
+    send_performance_feedback_email,
     send_project_assignment_email,
 )
 
@@ -155,4 +156,46 @@ def test_send_announcement_email_project(mock_send_email):
     assert employee_name in html_content
     assert announcement_title in html_content
     assert project_name in html_content
-    assert "Project Announcement • Mediatize HRMS" in html_content
+    assert "Project Announcement • Mediatize HRMS" in html_content
+
+
+@patch("app.email_service.service.send_email")
+def test_send_performance_feedback_email(mock_send_email):
+    recipient_email = "alice.smith@mediatizetech.com"
+    employee_name = "Alice Smith"
+    review_period = "Q3 2026 (July - September)"
+    overall_rating = 4.5
+    overall_feedback = "Exceeded targets across all key deliverable metrics."
+    review_date = "September 09, 2026"
+    login_url = "http://localhost:5173/login"
+
+    send_performance_feedback_email(
+        recipient_email=recipient_email,
+        employee_name=employee_name,
+        review_period=review_period,
+        overall_rating=overall_rating,
+        overall_feedback=overall_feedback,
+        review_date=review_date,
+        login_url=login_url,
+    )
+
+    mock_send_email.assert_called_once()
+    call_kwargs = mock_send_email.call_args.kwargs
+
+    assert call_kwargs["recipient_email"] == recipient_email
+    assert call_kwargs["subject"] == "[HRMS] Your Performance Feedback"
+
+    html_content = call_kwargs["html_content"]
+    assert employee_name in html_content
+    assert review_period in html_content
+    assert "4.5" in html_content
+    assert overall_feedback in html_content
+    assert review_date in html_content
+    assert login_url in html_content
+
+    plain_text_content = call_kwargs["plain_text_content"]
+    assert employee_name in plain_text_content
+    assert review_period in plain_text_content
+    assert "4.5" in plain_text_content
+    assert overall_feedback in plain_text_content
+
