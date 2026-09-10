@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -17,6 +18,7 @@ import {
   Clock,
   Sparkles,
   ArrowLeft,
+  X,
 } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
@@ -34,7 +36,8 @@ export default function HRProfile({ editMode = false }) {
   const location = useLocation();
   const { user, refreshUser } = useAuth();
 
-  const isEditing = editMode || location.pathname === "/hr/profile/edit";
+  const isEditing =
+    editMode || location.pathname === "/hr/profile/edit";
 
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -47,18 +50,28 @@ export default function HRProfile({ editMode = false }) {
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  // Profile image preview state
+  const [isImagePreviewOpen, setIsImagePreviewOpen] =
+    useState(false);
+
   const fetchProfile = async () => {
     try {
       setLoading(true);
+
       const res = await getHRProfile();
       const data = res.data;
+
       setProfileData(data);
       setFirstName(data.first_name || "");
       setLastName(data.last_name || "");
       setAddress(data.address || "");
     } catch (err) {
       console.error("Failed to load HR profile:", err);
-      toast.error(err.response?.data?.detail || "Failed to load HR profile.");
+
+      toast.error(
+        err.response?.data?.detail ||
+          "Failed to load HR profile."
+      );
     } finally {
       setLoading(false);
     }
@@ -67,6 +80,53 @@ export default function HRProfile({ editMode = false }) {
   useEffect(() => {
     fetchProfile();
   }, [location.pathname]);
+
+  // ============================================================
+  // CLOSE IMAGE PREVIEW WHEN ROUTE CHANGES
+  // ============================================================
+  useEffect(() => {
+    setIsImagePreviewOpen(false);
+  }, [location.pathname]);
+
+  // ============================================================
+  // ESCAPE KEY FOR IMAGE PREVIEW
+  // ============================================================
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && isImagePreviewOpen) {
+        setIsImagePreviewOpen(false);
+      }
+    };
+
+    if (isImagePreviewOpen) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      document.removeEventListener(
+        "keydown",
+        handleKeyDown
+      );
+    };
+  }, [isImagePreviewOpen]);
+
+  // ============================================================
+  // PREVENT BACKGROUND SCROLL WHILE IMAGE PREVIEW IS OPEN
+  // ============================================================
+  useEffect(() => {
+    if (!isImagePreviewOpen) {
+      return;
+    }
+
+    const previousOverflow =
+      document.body.style.overflow;
+
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isImagePreviewOpen]);
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -77,6 +137,7 @@ export default function HRProfile({ editMode = false }) {
     }
 
     setSaving(true);
+
     try {
       const payload = {
         first_name: firstName.trim(),
@@ -85,6 +146,7 @@ export default function HRProfile({ editMode = false }) {
       };
 
       const res = await updateHRProfile(payload);
+
       setProfileData(res.data);
 
       if (refreshUser) {
@@ -92,9 +154,13 @@ export default function HRProfile({ editMode = false }) {
       }
 
       toast.success("HR Profile updated successfully!");
+
       navigate("/hr/profile");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Failed to update profile.");
+      toast.error(
+        err.response?.data?.detail ||
+          "Failed to update profile."
+      );
     } finally {
       setSaving(false);
     }
@@ -102,16 +168,27 @@ export default function HRProfile({ editMode = false }) {
 
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
+
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image file size must be less than 5 MB.");
+      toast.error(
+        "Image file size must be less than 5 MB."
+      );
       return;
     }
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
+    const allowedTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "image/jpg",
+    ];
+
     if (!allowedTypes.includes(file.type.toLowerCase())) {
-      toast.error("Invalid file format. Please upload JPG, PNG, or WebP.");
+      toast.error(
+        "Invalid file format. Please upload JPG, PNG, or WebP."
+      );
       return;
     }
 
@@ -119,15 +196,22 @@ export default function HRProfile({ editMode = false }) {
     formData.append("file", file);
 
     setUploadingPhoto(true);
+
     try {
       const res = await uploadHRProfilePhoto(formData);
+
       setProfileData(res.data);
+
       if (refreshUser) {
         await refreshUser();
       }
+
       toast.success("Profile photo updated!");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Photo upload failed.");
+      toast.error(
+        err.response?.data?.detail ||
+          "Photo upload failed."
+      );
     } finally {
       setUploadingPhoto(false);
     }
@@ -136,43 +220,87 @@ export default function HRProfile({ editMode = false }) {
   const handleRemovePhoto = async () => {
     try {
       const res = await deleteHRProfilePhoto();
+
       setProfileData(res.data);
+
       if (refreshUser) {
         await refreshUser();
       }
+
       toast.info("Profile photo removed.");
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Photo removal failed.");
+      toast.error(
+        err.response?.data?.detail ||
+          "Photo removal failed."
+      );
     }
   };
 
   const getFullName = () => {
-    const fn = (profileData?.first_name || firstName || "").trim();
-    const ln = (profileData?.last_name || lastName || "").trim();
-    const full = [fn, ln].filter(Boolean).join(" ");
+    const fn = (
+      profileData?.first_name ||
+      firstName ||
+      ""
+    ).trim();
+
+    const ln = (
+      profileData?.last_name ||
+      lastName ||
+      ""
+    ).trim();
+
+    const full = [fn, ln]
+      .filter(Boolean)
+      .join(" ");
+
     return full || "HR Executive";
   };
 
   const getInitials = () => {
-    const fn = (profileData?.first_name || firstName || "").trim();
-    const ln = (profileData?.last_name || lastName || "").trim();
+    const fn = (
+      profileData?.first_name ||
+      firstName ||
+      ""
+    ).trim();
+
+    const ln = (
+      profileData?.last_name ||
+      lastName ||
+      ""
+    ).trim();
+
     if (fn && ln) {
-      return `${fn.charAt(0)}${ln.charAt(0)}`.toUpperCase();
+      return `${fn.charAt(0)}${ln.charAt(
+        0
+      )}`.toUpperCase();
     }
+
     if (fn) {
       return fn.slice(0, 2).toUpperCase();
     }
+
     if (ln) {
       return ln.slice(0, 2).toUpperCase();
     }
+
     return "HR";
   };
 
-  const displayEmail = profileData?.email || user?.email || "hr@mediatizetech.com";
-  const displayRole = profileData?.role || user?.role || "HR";
+  const displayEmail =
+    profileData?.email ||
+    user?.email ||
+    "hr@mediatizetech.com";
+
+  const displayRole =
+    profileData?.role ||
+    user?.role ||
+    "HR";
 
   const renderStatusBadge = (status = "ACTIVE") => {
-    const normalized = (status || "ACTIVE").toUpperCase();
+    const normalized = (
+      status || "ACTIVE"
+    ).toUpperCase();
+
     let colorClass = "status-badge-active";
     let label = normalized;
 
@@ -187,25 +315,266 @@ export default function HRProfile({ editMode = false }) {
     }
 
     return (
-      <span className={`profile-status-badge ${colorClass}`}>
+      <span
+        className={`profile-status-badge ${colorClass}`}
+      >
         <span className="status-dot">●</span>
         <span>{label}</span>
       </span>
     );
   };
 
+  // ============================================================
+  // PROFILE IMAGE PREVIEW HANDLERS
+  // ============================================================
+  const handleProfileImageClick = () => {
+    if (!isEditing && profileData?.profile_photo_url) {
+      setIsImagePreviewOpen(true);
+    }
+  };
+
+  const handleCloseImagePreview = () => {
+    setIsImagePreviewOpen(false);
+  };
+
+  // ============================================================
+  // RESPONSIVE PROFILE IMAGE LIGHTBOX
+  // ============================================================
+  const profileImagePreview =
+    isImagePreviewOpen &&
+    profileData?.profile_photo_url &&
+    typeof document !== "undefined"
+      ? createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${getFullName()} profile picture`}
+            onMouseDown={(event) => {
+              if (
+                event.target === event.currentTarget
+              ) {
+                handleCloseImagePreview();
+              }
+            }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              width: "100vw",
+              height: "100vh",
+              zIndex: 2147483647,
+
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+
+              padding:
+                "clamp(12px, 2.5vw, 32px)",
+
+              boxSizing: "border-box",
+
+              backgroundColor:
+                "rgba(0, 0, 0, 0.88)",
+
+              backdropFilter: "blur(10px)",
+              WebkitBackdropFilter:
+                "blur(10px)",
+
+              overflow: "hidden",
+            }}
+          >
+            <div
+              onMouseDown={(event) => {
+                event.stopPropagation();
+              }}
+              style={{
+                width: "100%",
+                height: "100%",
+
+                display: "flex",
+                flexDirection: "column",
+
+                alignItems: "center",
+                justifyContent: "center",
+
+                boxSizing: "border-box",
+
+                minWidth: 0,
+                minHeight: 0,
+              }}
+            >
+              {/* Large Responsive Image Area */}
+              <div
+                style={{
+                  width: "min(82vw, 900px)",
+                  height: "min(76vh, 760px)",
+
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+
+                  boxSizing: "border-box",
+
+                  minWidth: 0,
+                  minHeight: 0,
+
+                  flexShrink: 1,
+                }}
+              >
+                <img
+                  src={profileData.profile_photo_url}
+                  alt={`${getFullName()} profile`}
+                  draggable="false"
+                  style={{
+                    display: "block",
+
+                    width: "100%",
+                    height: "100%",
+
+                    objectFit: "contain",
+                    objectPosition: "center",
+
+                    borderRadius: "20px",
+
+                    backgroundColor: "#ffffff",
+
+                    boxShadow:
+                      "0 30px 90px rgba(0, 0, 0, 0.7)",
+
+                    userSelect: "none",
+
+                    WebkitUserDrag: "none",
+
+                    minWidth: 0,
+                    minHeight: 0,
+                  }}
+                />
+              </div>
+
+              {/* Profile Name */}
+              <div
+                style={{
+                  marginTop: "14px",
+
+                  maxWidth: "80vw",
+
+                  color: "#ffffff",
+
+                  fontSize:
+                    "clamp(14px, 1.2vw, 18px)",
+
+                  fontWeight: "600",
+
+                  lineHeight: "1.4",
+
+                  textAlign: "center",
+
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+
+                  flexShrink: 0,
+                }}
+              >
+                {getFullName()}
+              </div>
+
+              {/* Red Close Button */}
+              <button
+                type="button"
+                onClick={handleCloseImagePreview}
+                aria-label="Close profile picture preview"
+                style={{
+                  marginTop: "14px",
+
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+
+                  gap: "8px",
+
+                  minWidth: "116px",
+
+                  padding: "11px 22px",
+
+                  border:
+                    "1px solid #dc2626",
+
+                  borderRadius: "10px",
+
+                  backgroundColor: "#dc2626",
+
+                  color: "#ffffff",
+
+                  fontSize: "14px",
+
+                  fontWeight: "600",
+
+                  cursor: "pointer",
+
+                  boxShadow:
+                    "0 8px 25px rgba(220, 38, 38, 0.35)",
+
+                  transition:
+                    "background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease",
+
+                  whiteSpace: "nowrap",
+
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(event) => {
+                  event.currentTarget.style.backgroundColor =
+                    "#b91c1c";
+
+                  event.currentTarget.style.transform =
+                    "translateY(-1px)";
+
+                  event.currentTarget.style.boxShadow =
+                    "0 10px 28px rgba(220, 38, 38, 0.45)";
+                }}
+                onMouseLeave={(event) => {
+                  event.currentTarget.style.backgroundColor =
+                    "#dc2626";
+
+                  event.currentTarget.style.transform =
+                    "translateY(0)";
+
+                  event.currentTarget.style.boxShadow =
+                    "0 8px 25px rgba(220, 38, 38, 0.35)";
+                }}
+              >
+                <X size={17} strokeWidth={2.5} />
+                <span>Close</span>
+              </button>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
+  // ============================================================
+  // LOADING STATE
+  // ============================================================
   if (loading) {
     return (
       <AppLayout title="HR Profile">
         <div className="profile-page-wrapper">
-          <BackToDashboard to="/hr/dashboard" role="HR" />
+          <BackToDashboard
+            to="/hr/dashboard"
+            role="HR"
+          />
+
           <div className="profile-skeleton-wrapper">
             <div className="skeleton-hero-card profile-shimmer"></div>
+
             <div className="skeleton-stats-grid">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="skeleton-stat-box profile-shimmer"></div>
+                <div
+                  key={i}
+                  className="skeleton-stat-box profile-shimmer"
+                ></div>
               ))}
             </div>
+
             <div className="skeleton-info-grid">
               <div className="skeleton-info-box profile-shimmer"></div>
               <div className="skeleton-info-box profile-shimmer"></div>
@@ -216,316 +585,531 @@ export default function HRProfile({ editMode = false }) {
     );
   }
 
-  if (!profileData) return null;
+  if (!profileData) {
+    return null;
+  }
 
   return (
-    <AppLayout title={isEditing ? "Edit HR Profile" : "HR Executive Profile"}>
-      <div className="profile-page-wrapper">
-        <BackToDashboard to="/hr/dashboard" role="HR" />
+    <>
+      <AppLayout
+        title={
+          isEditing
+            ? "Edit HR Profile"
+            : "HR Executive Profile"
+        }
+      >
+        <div className="profile-page-wrapper">
+          <BackToDashboard
+            to="/hr/dashboard"
+            role="HR"
+          />
 
-        {/* HERO CARD */}
-        <div className="profile-hero-card">
-          <div className="profile-cover-banner"></div>
+          {/* HERO CARD */}
+          <div className="profile-hero-card">
+            <div className="profile-cover-banner"></div>
 
-          <div className="profile-hero-body">
-            <div className="profile-hero-top-bar">
-              <div className="profile-avatar-wrapper">
-                {profileData.profile_photo_url ? (
-                  <img
-                    src={profileData.profile_photo_url}
-                    alt={getFullName()}
-                    className="profile-avatar-img"
-                  />
-                ) : (
-                  <div className="profile-avatar-initials">
-                    {getInitials()}
-                  </div>
-                )}
-
-                {/* Upload Overlay Button in Edit Mode */}
-                {isEditing && (
-                  <label
-                    className="profile-avatar-upload-overlay"
-                    title={uploadingPhoto ? "Uploading..." : "Upload Profile Photo"}
-                  >
-                    <Camera size={16} />
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg, image/jpg, image/webp"
-                      onChange={handlePhotoUpload}
-                      disabled={uploadingPhoto}
-                      style={{ display: "none" }}
-                    />
-                  </label>
-                )}
-              </div>
-
-              <div className="profile-hero-actions">
-                {!isEditing ? (
-                  <button
-                    onClick={() => navigate("/hr/profile/edit")}
-                    className="btn-profile-primary"
-                    aria-label="Edit HR Profile"
-                  >
-                    <Pencil size={15} />
-                    <span>Edit Profile</span>
-                  </button>
-                ) : (
-                  <>
+            <div className="profile-hero-body">
+              <div className="profile-hero-top-bar">
+                <div className="profile-avatar-wrapper">
+                  {profileData.profile_photo_url ? (
                     <button
-                      onClick={() => navigate("/hr/profile")}
-                      className="btn-profile-secondary"
+                      type="button"
+                      onClick={
+                        handleProfileImageClick
+                      }
+                      disabled={isEditing}
+                      aria-label={
+                        isEditing
+                          ? "Profile picture"
+                          : "View profile picture"
+                      }
+                      title={
+                        isEditing
+                          ? "Profile picture"
+                          : "Click to view profile picture"
+                      }
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        padding: 0,
+                        margin: 0,
+                        border: "none",
+                        background: "transparent",
+                        borderRadius: "50%",
+                        cursor: isEditing
+                          ? "default"
+                          : "zoom-in",
+                        display: "block",
+                        overflow: "hidden",
+                      }}
                     >
-                      Cancel
+                      <img
+                        src={
+                          profileData.profile_photo_url
+                        }
+                        alt={getFullName()}
+                        className="profile-avatar-img"
+                      />
                     </button>
-                    {profileData.profile_photo_url && (
-                      <button
-                        type="button"
-                        onClick={handleRemovePhoto}
-                        className="btn-profile-photo-remove"
-                      >
-                        <Trash2 size={13} />
-                        <span>Remove Photo</span>
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
-            </div>
+                  ) : (
+                    <div className="profile-avatar-initials">
+                      {getInitials()}
+                    </div>
+                  )}
 
-            <div className="profile-hero-identity">
-              <h1 className="profile-hero-name">{getFullName()}</h1>
-              <div className="profile-meta-badges">
-                <span className="profile-role-pill role-pill-hr">
-                  <ShieldCheck size={13} />
-                  <span>{displayRole}</span>
-                </span>
-                <span className="profile-code-tag">
-                  <BadgeCheck size={13} />
-                  <span>HR-ADMIN</span>
-                </span>
-                {renderStatusBadge("ACTIVE")}
+                  {/* Upload Overlay Button in Edit Mode */}
+                  {isEditing && (
+                    <label
+                      className="profile-avatar-upload-overlay"
+                      title={
+                        uploadingPhoto
+                          ? "Uploading..."
+                          : "Upload Profile Photo"
+                      }
+                    >
+                      <Camera size={16} />
+
+                      <input
+                        type="file"
+                        accept="image/png, image/jpeg, image/jpg, image/webp"
+                        onChange={
+                          handlePhotoUpload
+                        }
+                        disabled={
+                          uploadingPhoto
+                        }
+                        style={{
+                          display: "none",
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
+
+                <div className="profile-hero-actions">
+                  {!isEditing ? (
+                    <button
+                      onClick={() =>
+                        navigate(
+                          "/hr/profile/edit"
+                        )
+                      }
+                      className="btn-profile-primary"
+                      aria-label="Edit HR Profile"
+                    >
+                      <Pencil size={15} />
+                      <span>Edit Profile</span>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() =>
+                          navigate(
+                            "/hr/profile"
+                          )
+                        }
+                        className="btn-profile-secondary"
+                      >
+                        Cancel
+                      </button>
+
+                      {profileData.profile_photo_url && (
+                        <button
+                          type="button"
+                          onClick={
+                            handleRemovePhoto
+                          }
+                          className="btn-profile-photo-remove"
+                        >
+                          <Trash2 size={13} />
+                          <span>
+                            Remove Photo
+                          </span>
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="profile-hero-identity">
+                <h1 className="profile-hero-name">
+                  {getFullName()}
+                </h1>
+
+                <div className="profile-meta-badges">
+                  <span className="profile-role-pill role-pill-hr">
+                    <ShieldCheck size={13} />
+                    <span>{displayRole}</span>
+                  </span>
+
+                  <span className="profile-code-tag">
+                    <BadgeCheck size={13} />
+                    <span>HR-ADMIN</span>
+                  </span>
+
+                  {renderStatusBadge("ACTIVE")}
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {!isEditing ? (
-          <>
-            {/* QUICK INFO STATS CARDS */}
-            <div className="profile-stats-grid">
-              <div className="profile-stat-card">
-                <div className="stat-icon-wrapper">
-                  <BadgeCheck size={20} />
-                </div>
-                <div className="stat-content">
-                  <span className="stat-label">Admin ID</span>
-                  <span className="stat-value">HR-{profileData.id || "001"}</span>
-                </div>
-              </div>
-
-              <div className="profile-stat-card">
-                <div className="stat-icon-wrapper">
-                  <Building2 size={20} />
-                </div>
-                <div className="stat-content">
-                  <span className="stat-label">Department</span>
-                  <span className="stat-value">Human Resources</span>
-                </div>
-              </div>
-
-              <div className="profile-stat-card">
-                <div className="stat-icon-wrapper">
-                  <Briefcase size={20} />
-                </div>
-                <div className="stat-content">
-                  <span className="stat-label">Executive Role</span>
-                  <span className="stat-value">{displayRole} Management</span>
-                </div>
-              </div>
-
-              <div className="profile-stat-card">
-                <div className="stat-icon-wrapper">
-                  <ShieldCheck size={20} />
-                </div>
-                <div className="stat-content">
-                  <span className="stat-label">Access Control</span>
-                  <span className="stat-value">Super Admin</span>
-                </div>
-              </div>
-            </div>
-
-            {/* TWO-COLUMN DETAILED INFO GRID */}
-            <div className="profile-info-grid">
-              {/* Card 1: Contact Information */}
-              <div className="profile-info-card">
-                <div className="info-card-header">
-                  <h3 className="info-card-title">
-                    <Mail size={18} className="info-card-title-icon" />
-                    <span>Contact Information</span>
-                  </h3>
-                </div>
-                <div className="info-card-fields">
-                  <div className="info-field-item">
-                    <span className="info-field-label">
-                      <Mail size={13} className="info-field-icon" />
-                      <span>Email Address</span>
-                    </span>
-                    <span className="info-field-value">{displayEmail}</span>
+          {!isEditing ? (
+            <>
+              {/* QUICK INFO STATS CARDS */}
+              <div className="profile-stats-grid">
+                <div className="profile-stat-card">
+                  <div className="stat-icon-wrapper">
+                    <BadgeCheck size={20} />
                   </div>
 
-                  <div className="info-field-item">
-                    <span className="info-field-label">
-                      <MapPin size={13} className="info-field-icon" />
-                      <span>Office / Residential Address</span>
+                  <div className="stat-content">
+                    <span className="stat-label">
+                      Admin ID
                     </span>
-                    <span className="info-field-value">
-                      {profileData.address ? (
-                        profileData.address
-                      ) : (
-                        <span className="info-field-empty">Not provided</span>
-                      )}
+
+                    <span className="stat-value">
+                      HR-{profileData.id || "001"}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="profile-stat-card">
+                  <div className="stat-icon-wrapper">
+                    <Building2 size={20} />
+                  </div>
+
+                  <div className="stat-content">
+                    <span className="stat-label">
+                      Department
+                    </span>
+
+                    <span className="stat-value">
+                      Human Resources
+                    </span>
+                  </div>
+                </div>
+
+                <div className="profile-stat-card">
+                  <div className="stat-icon-wrapper">
+                    <Briefcase size={20} />
+                  </div>
+
+                  <div className="stat-content">
+                    <span className="stat-label">
+                      Executive Role
+                    </span>
+
+                    <span className="stat-value">
+                      {displayRole} Management
+                    </span>
+                  </div>
+                </div>
+
+                <div className="profile-stat-card">
+                  <div className="stat-icon-wrapper">
+                    <ShieldCheck size={20} />
+                  </div>
+
+                  <div className="stat-content">
+                    <span className="stat-label">
+                      Access Control
+                    </span>
+
+                    <span className="stat-value">
+                      Super Admin
                     </span>
                   </div>
                 </div>
               </div>
 
-              {/* Card 2: System & Account Security */}
-              <div className="profile-info-card">
-                <div className="info-card-header">
-                  <h3 className="info-card-title">
-                    <ShieldCheck size={18} className="info-card-title-icon" />
-                    <span>Account & Security</span>
-                  </h3>
-                </div>
-                <div className="info-card-fields">
-                  <div className="info-field-item">
-                    <span className="info-field-label">
-                      <User size={13} className="info-field-icon" />
-                      <span>Full Name</span>
-                    </span>
-                    <span className="info-field-value">{getFullName()}</span>
+              {/* TWO-COLUMN DETAILED INFO GRID */}
+              <div className="profile-info-grid">
+                {/* Card 1: Contact Information */}
+                <div className="profile-info-card">
+                  <div className="info-card-header">
+                    <h3 className="info-card-title">
+                      <Mail
+                        size={18}
+                        className="info-card-title-icon"
+                      />
+                      <span>
+                        Contact Information
+                      </span>
+                    </h3>
                   </div>
 
-                  <div className="info-field-item">
-                    <span className="info-field-label">
-                      <CheckCircle2 size={13} className="info-field-icon" />
-                      <span>Account Status</span>
-                    </span>
-                    <div style={{ marginTop: "0.15rem" }}>
-                      {renderStatusBadge("ACTIVE")}
+                  <div className="info-card-fields">
+                    <div className="info-field-item">
+                      <span className="info-field-label">
+                        <Mail
+                          size={13}
+                          className="info-field-icon"
+                        />
+                        <span>
+                          Email Address
+                        </span>
+                      </span>
+
+                      <span className="info-field-value">
+                        {displayEmail}
+                      </span>
+                    </div>
+
+                    <div className="info-field-item">
+                      <span className="info-field-label">
+                        <MapPin
+                          size={13}
+                          className="info-field-icon"
+                        />
+                        <span>
+                          Office / Residential
+                          Address
+                        </span>
+                      </span>
+
+                      <span className="info-field-value">
+                        {profileData.address ? (
+                          profileData.address
+                        ) : (
+                          <span className="info-field-empty">
+                            Not provided
+                          </span>
+                        )}
+                      </span>
                     </div>
                   </div>
+                </div>
 
-                  <div className="info-field-item">
-                    <span className="info-field-label">
-                      <Sparkles size={13} className="info-field-icon" />
-                      <span>Authentication Method</span>
-                    </span>
-                    <span className="info-field-value">Passwordless OTP Verification</span>
+                {/* Card 2: System & Account Security */}
+                <div className="profile-info-card">
+                  <div className="info-card-header">
+                    <h3 className="info-card-title">
+                      <ShieldCheck
+                        size={18}
+                        className="info-card-title-icon"
+                      />
+                      <span>
+                        Account & Security
+                      </span>
+                    </h3>
+                  </div>
+
+                  <div className="info-card-fields">
+                    <div className="info-field-item">
+                      <span className="info-field-label">
+                        <User
+                          size={13}
+                          className="info-field-icon"
+                        />
+                        <span>Full Name</span>
+                      </span>
+
+                      <span className="info-field-value">
+                        {getFullName()}
+                      </span>
+                    </div>
+
+                    <div className="info-field-item">
+                      <span className="info-field-label">
+                        <CheckCircle2
+                          size={13}
+                          className="info-field-icon"
+                        />
+                        <span>
+                          Account Status
+                        </span>
+                      </span>
+
+                      <div
+                        style={{
+                          marginTop: "0.15rem",
+                        }}
+                      >
+                        {renderStatusBadge(
+                          "ACTIVE"
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="info-field-item">
+                      <span className="info-field-label">
+                        <Sparkles
+                          size={13}
+                          className="info-field-icon"
+                        />
+                        <span>
+                          Authentication Method
+                        </span>
+                      </span>
+
+                      <span className="info-field-value">
+                        Passwordless OTP Verification
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </>
-        ) : (
-          /* EDIT PROFILE FORM CARD */
-          <div className="profile-edit-card">
-            <h2 className="profile-form-title">
-              <Pencil size={18} style={{ color: "var(--primary-color)" }} />
-              <span>Update HR Profile Information</span>
-            </h2>
-
-            <form onSubmit={handleSaveProfile}>
-              <div className="profile-form-grid-2">
-                <div className="profile-form-group">
-                  <label className="profile-form-label">
-                    <span>First Name</span>
-                    <span style={{ color: "var(--danger-color)" }}>*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="profile-form-input"
-                    placeholder="Enter first name"
-                  />
-                </div>
-
-                <div className="profile-form-group">
-                  <label className="profile-form-label">
-                    <span>Last Name</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="profile-form-input"
-                    placeholder="Enter last name"
-                  />
-                </div>
-              </div>
-
-              <div className="profile-form-group" style={{ marginBottom: "1.25rem" }}>
-                <label className="profile-form-label">
-                  <span>Address</span>
-                </label>
-                <textarea
-                  rows={3}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  className="profile-form-textarea"
-                  placeholder="Enter office or residential address (e.g. Hyderabad, Telangana, India)"
+            </>
+          ) : (
+            /* EDIT PROFILE FORM CARD */
+            <div className="profile-edit-card">
+              <h2 className="profile-form-title">
+                <Pencil
+                  size={18}
+                  style={{
+                    color:
+                      "var(--primary-color)",
+                  }}
                 />
-              </div>
 
-              <div className="profile-form-grid-2" style={{ opacity: 0.85 }}>
-                <div className="profile-form-group">
+                <span>
+                  Update HR Profile Information
+                </span>
+              </h2>
+
+              <form onSubmit={handleSaveProfile}>
+                <div className="profile-form-grid-2">
+                  <div className="profile-form-group">
+                    <label className="profile-form-label">
+                      <span>First Name</span>
+
+                      <span
+                        style={{
+                          color:
+                            "var(--danger-color)",
+                        }}
+                      >
+                        *
+                      </span>
+                    </label>
+
+                    <input
+                      type="text"
+                      required
+                      value={firstName}
+                      onChange={(e) =>
+                        setFirstName(
+                          e.target.value
+                        )
+                      }
+                      className="profile-form-input"
+                      placeholder="Enter first name"
+                    />
+                  </div>
+
+                  <div className="profile-form-group">
+                    <label className="profile-form-label">
+                      <span>Last Name</span>
+                    </label>
+
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) =>
+                        setLastName(
+                          e.target.value
+                        )
+                      }
+                      className="profile-form-input"
+                      placeholder="Enter last name"
+                    />
+                  </div>
+                </div>
+
+                <div
+                  className="profile-form-group"
+                  style={{
+                    marginBottom: "1.25rem",
+                  }}
+                >
                   <label className="profile-form-label">
-                    <span>Email Address (Read Only)</span>
+                    <span>Address</span>
                   </label>
-                  <input
-                    type="email"
-                    value={displayEmail}
-                    disabled
-                    className="profile-form-input profile-form-input-disabled"
+
+                  <textarea
+                    rows={3}
+                    value={address}
+                    onChange={(e) =>
+                      setAddress(
+                        e.target.value
+                      )
+                    }
+                    className="profile-form-textarea"
+                    placeholder="Enter office or residential address (e.g. Hyderabad, Telangana, India)"
                   />
                 </div>
 
-                <div className="profile-form-group">
-                  <label className="profile-form-label">
-                    <span>System Role (Read Only)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={displayRole}
-                    disabled
-                    className="profile-form-input profile-form-input-disabled"
-                  />
-                </div>
-              </div>
+                <div
+                  className="profile-form-grid-2"
+                  style={{
+                    opacity: 0.85,
+                  }}
+                >
+                  <div className="profile-form-group">
+                    <label className="profile-form-label">
+                      <span>
+                        Email Address (Read
+                        Only)
+                      </span>
+                    </label>
 
-              <div className="profile-form-actions">
-                <button
-                  type="button"
-                  onClick={() => navigate("/hr/profile")}
-                  className="btn-profile-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="btn-profile-primary"
-                >
-                  {saving ? "Saving Changes..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-      </div>
-    </AppLayout>
+                    <input
+                      type="email"
+                      value={displayEmail}
+                      disabled
+                      className="profile-form-input profile-form-input-disabled"
+                    />
+                  </div>
+
+                  <div className="profile-form-group">
+                    <label className="profile-form-label">
+                      <span>
+                        System Role (Read
+                        Only)
+                      </span>
+                    </label>
+
+                    <input
+                      type="text"
+                      value={displayRole}
+                      disabled
+                      className="profile-form-input profile-form-input-disabled"
+                    />
+                  </div>
+                </div>
+
+                <div className="profile-form-actions">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      navigate(
+                        "/hr/profile"
+                      )
+                    }
+                    className="btn-profile-secondary"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="btn-profile-primary"
+                  >
+                    {saving
+                      ? "Saving Changes..."
+                      : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      </AppLayout>
+
+      {/* Profile Image Lightbox */}
+      {profileImagePreview}
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { CalendarDays, X, Plus } from "lucide-react";
+import { CalendarDays, X, Plus, ChevronDown } from "lucide-react";
 import AppLayout from "../../shared/components/AppLayout";
 import BackToDashboard from "../../shared/components/BackToDashboard";
 import { ConfirmDialog } from "../../shared/components/Modal";
@@ -30,6 +30,7 @@ function Leave() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [showBalances, setShowBalances] = useState(false);
   const limit = 15;
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -231,47 +232,70 @@ function Leave() {
             </p>
           </div>
 
-          <button
-            style={{ ...styles.applyBtn, display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
-            onClick={() => {
-              resetForm();
-              setShowApplyModal(true);
-            }}
-          >
-            <Plus size={16} /> Apply for Leave
-          </button>
+          <div style={styles.headerActions}>
+            <button
+              type="button"
+              style={styles.balanceToggleBtn}
+              onClick={() => setShowBalances((prev) => !prev)}
+              aria-expanded={showBalances}
+              aria-controls="employee-leave-balances"
+            >
+              <span>Check Leave Balance</span>
+              <ChevronDown
+                size={18}
+                style={{
+                  transform: showBalances ? "rotate(180deg)" : "rotate(0deg)",
+                  transition: "transform 0.2s ease",
+                }}
+              />
+            </button>
+
+            <button
+              style={{ ...styles.applyBtn, display: "inline-flex", alignItems: "center", gap: "0.375rem" }}
+              onClick={() => {
+                resetForm();
+                setShowApplyModal(true);
+              }}
+            >
+              <Plus size={16} /> Apply for Leave
+            </button>
+          </div>
         </div>
 
-        {/* Leave Balances Grid */}
-        <h2 style={styles.sectionTitle}>Leave Balances</h2>
-        <div style={styles.balanceGrid}>
-          {balances.length === 0 ? (
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>No Leave Balances Assigned</h3>
-              <p style={styles.cardSubtitle}>
-                No active leave balance is allocated for this year. Please contact HR if your balances need to be initialized.
-              </p>
+        {/* Leave Balances - Hidden by default */}
+        {showBalances && (
+          <div id="employee-leave-balances" style={styles.balancePanel}>
+            <h2 style={styles.sectionTitle}>Leave Balances</h2>
+            <div style={styles.balanceGrid}>
+              {balances.length === 0 ? (
+                <div style={styles.card}>
+                  <h3 style={styles.cardTitle}>No Leave Balances Assigned</h3>
+                  <p style={styles.cardSubtitle}>
+                    No active leave balance is allocated for this year. Please contact HR if your balances need to be initialized.
+                  </p>
+                </div>
+              ) : (
+                balances.map((b) => (
+                  <div key={b.id || b.leave_type_id} style={styles.card}>
+                    <h3 style={styles.cardTitle}>{b.leave_type_name || "Leave Balance"}</h3>
+                    <p style={styles.cardSubtitle}>Year {b.year}</p>
+                    <div style={styles.balanceRow}>
+                      <span style={styles.balanceNum}>
+                        {Number(b.allocated_days - b.used_days - b.pending_days).toFixed(1)}
+                      </span>
+                      <span style={styles.balanceLabel}>remaining</span>
+                    </div>
+                    <div style={styles.balanceMeta}>
+                      <span>Allocated: {b.allocated_days}</span>
+                      <span>Used: {b.used_days}</span>
+                      <span>Pending: {b.pending_days}</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
-          ) : (
-            balances.map((b) => (
-              <div key={b.id || b.leave_type_id} style={styles.card}>
-                <h3 style={styles.cardTitle}>{b.leave_type_name || "Leave Balance"}</h3>
-                <p style={styles.cardSubtitle}>Year {b.year}</p>
-                <div style={styles.balanceRow}>
-                  <span style={styles.balanceNum}>
-                    {Number(b.allocated_days - b.used_days - b.pending_days).toFixed(1)}
-                  </span>
-                  <span style={styles.balanceLabel}>remaining</span>
-                </div>
-                <div style={styles.balanceMeta}>
-                  <span>Allocated: {b.allocated_days}</span>
-                  <span>Used: {b.used_days}</span>
-                  <span>Pending: {b.pending_days}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Leave Requests History */}
         <h2 style={styles.sectionTitle}>My Leave Requests</h2>
@@ -633,6 +657,36 @@ const styles = {
     fontWeight: "600",
     cursor: "pointer",
     fontSize: "0.9rem",
+  },
+  headerActions: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+    gap: "0.75rem",
+    maxWidth: "100%",
+  },
+  balanceToggleBtn: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "0.5rem",
+    minHeight: "42px",
+    maxWidth: "100%",
+    backgroundColor: "var(--bg-surface)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border-color)",
+    padding: "0.625rem 0.875rem",
+    borderRadius: "var(--radius-md)",
+    fontWeight: "600",
+    cursor: "pointer",
+    fontSize: "0.875rem",
+    boxSizing: "border-box",
+  },
+  balancePanel: {
+    width: "100%",
+    boxSizing: "border-box",
+    marginBottom: "2rem",
   },
   alert: {
     padding: "0.875rem 1.25rem",

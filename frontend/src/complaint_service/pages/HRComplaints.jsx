@@ -621,7 +621,7 @@ function HRComplaints() {
                   <div style={styles.detailRow}>
                     <label style={styles.detailLabel}>Change Case Status</label>
                     <select
-                      style={styles.select}
+                      style={styles.modalStatusSelect}
                       value={selectedComplaint.status}
                       onChange={(e) => handleStatusChange(selectedComplaint.id, e.target.value)}
                     >
@@ -1163,6 +1163,21 @@ const styles = {
     fontSize: "0.95rem",
     fontWeight: "600",
     color: "var(--text-primary)",
+  },
+  modalStatusSelect: {
+    width: "100%",
+    minWidth: 0,
+    height: "44px",
+    minHeight: "44px",
+    boxSizing: "border-box",
+    backgroundColor: "var(--bg-surface-elevated)",
+    border: "1px solid var(--border-color)",
+    borderRadius: "var(--radius-md)",
+    color: "var(--text-primary)",
+    padding: "0 0.75rem",
+    fontSize: "0.95rem",
+    outline: "none",
+    cursor: "pointer",
   },
   detailTextContent: {
     fontSize: "0.9rem",
